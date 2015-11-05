@@ -1,3 +1,5 @@
+var Path = require('path');
+
 function createHandler(execlib, util) {
   'use strict';
   var lib = execlib.lib,
@@ -147,7 +149,7 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.read = function (name, options, defer) {
     if(this.closingDefer){
       if(defer){
-        defer.resolve();
+        defer.resolve(false);
       }
       return;
     }
@@ -156,7 +158,7 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.stepread = function (name, options, defer) {
     if(this.closingDefer){
       if(defer){
-        defer.resolve();
+        defer.resolve(false);
       }
       return;
     }
@@ -167,7 +169,7 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.write = function (name, options, defer) {
     if(this.closingDefer){
       if(defer){
-        defer.resolve();
+        defer.resolve(false);
       }
       return;
     }
@@ -213,6 +215,9 @@ function createHandler(execlib, util) {
     }
     this.id = null;
     this.parentDB = null;
+  };
+  FileDataBase.prototype.metaPath = function (filepath) {
+    return Path.join(Path.dirname(filepath),'.meta',Path.basename(filepath));
   };
 
   return FileDataBase;
