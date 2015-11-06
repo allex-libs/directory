@@ -219,6 +219,20 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.metaPath = function (filepath) {
     return Path.join(Path.dirname(filepath),'.meta',Path.basename(filepath));
   };
+  function allWriter(data, writer) {
+    writer.writeAll(data);
+  }
+  FileDataBase.prototype.writeToFileName = function (filename, parserinfo, data, defer) {
+    if (data === null) {
+      //just touch the file...
+      /*
+      console.log('Y data null?');
+      defer.reject(new lib.Error('WILL_NOT_WRITE_EMPTY_FILE','fs touch not supported'));
+      return;
+      */
+    }
+    this.write(filename, parserinfo, defer).then(allWriter.bind(null, data));
+  };
 
   return FileDataBase;
 }

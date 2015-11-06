@@ -159,9 +159,9 @@ function createReaders(execlib,FileOperation,util) {
     if (this.options.parserinstance) {
       this.onParser(this.options.parserinstance);
     } else {
-      if(this.options.modulename === '*'){
+      if(this.options.parsermodulename === '*'){
       }else{
-        execlib.execSuite.parserRegistry.spawn(this.options.modulename, this.options.propertyhash).done(
+        execlib.execSuite.parserRegistry.spawn(this.options.parsermodulename, this.options.propertyhash).done(
           this.onParser.bind(this),
           this.fail.bind(this)
         );
@@ -202,31 +202,8 @@ function createReaders(execlib,FileOperation,util) {
       this.destroy.bind(this),
       this.fail.bind(this)
     );
-    (hrfr).go();
+    hrfr.go();
   };
-  /*
-  ParsedFileReader.prototype.onRecordRead = function (parser, record) {
-    var rec;
-    if (!record) {
-      rec = parser.finalize();
-      if(lib.defined(rec)){
-        this.result++;
-        this.notify(rec);
-      }
-      this.close();
-      return;
-    }
-    try {
-      rec = parser.fileToData(record);
-      if(lib.defined(rec)){
-        this.result++;
-        this.notify(rec);
-      }
-    } catch (e) {
-      this.fail(e);
-    }
-  };
-  */
   ParsedFileReader.prototype.onOpenForRawRead = function (start, quantity) {
     //console.log(this.name, 'onOpenForRawRead', start, quantity);
     this.read(start, quantity).done(
@@ -279,6 +256,7 @@ function createReaders(execlib,FileOperation,util) {
   };
 
   function HRFReader(filereader, filesize, parser) {
+    console.log('new HRFReader', filesize);
     lib.AsyncJob.call(this);
     this.reader = filereader;
     this.parser = parser;
@@ -291,7 +269,9 @@ function createReaders(execlib,FileOperation,util) {
   }
   lib.inherit(HRFReader, lib.AsyncJob);
   HRFReader.prototype.destroy = function () {
-    this.parser.destroy();
+    if (this.parser) {
+      this.parser.destroy();
+    }
     this.recordstoread = null;
     this.footer = null;
     this.record = null;
@@ -355,7 +335,11 @@ function createReaders(execlib,FileOperation,util) {
       this.footer = null;
       this.parser.onFooter(buffer);
     }
-    this.read();
+    if (!(this.reader.result%100)) {
+      lib.runNext(this.read.bind(this), 100);
+    } else {
+      this.read();
+    }
   };
   HRFReader.prototype.onRecord = function (record) {
     var rec;
@@ -388,7 +372,7 @@ function createReaders(execlib,FileOperation,util) {
   /*
    * options: {
    *   filecontents: { //options
-   *     modulename: '*' or a real parser modulename,
+   *     parsermodulename: '*' or a real parser modulename,
    *     parsers: {
    *       modulename: modulepropertyhash for spawning
    *     }
@@ -408,9 +392,9 @@ function createReaders(execlib,FileOperation,util) {
       instance: null
     };
     if (this.options.filecontents) {
-      if (this.options.filecontents.modulename) {
-        if (this.options.filecontents.modulename !== '*') {
-          execlib.execSuite.parserRegistry.spawn(this.options.filecontents.modulename, this.options.filecontents.propertyhash).done(
+      if (this.options.filecontents.parsermodulename) {
+        if (this.options.filecontents.parsermodulename !== '*') {
+          execlib.execSuite.parserRegistry.spawn(this.options.filecontents.parsermodulename, this.options.filecontents.propertyhash).done(
             this.onParserInstantiated.bind(this),
             this.fail.bind(this)
           );
@@ -426,7 +410,7 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.go = function () {
     //console.log('going for', this.path, 'with current parserInfo', this.parserInfo, 'and options', this.options);
-    if(this.options.needparsing && this.options.filecontents.modulename !== '*') {
+    if(this.options.needparsing && this.options.filecontents.parsermodulename !== '*') {
       if (!this.parserInfo.instance) {
         this.parserInfo.waiting = true;
         return;
@@ -507,7 +491,7 @@ function createReaders(execlib,FileOperation,util) {
     //console.log(this.name, 'deciding wether to read .meta, this.parserInfo', this.parserInfo, 'this.options', this.options);
     if (this.needMeta()) {
       rd = q.defer();
-      metareader = readerFactory(Path.join('.meta', filename), Path.join(this.path, '.meta', filename), {modulename: 'allex_jsonparser'}, rd);
+      metareader = readerFactory(Path.join('.meta', filename), Path.join(this.path, '.meta', filename), {parsermodulename: 'allex_jsonparser'}, rd);
       rd.promise.done(
         this.onMeta.bind(this,d,filename),
         this.oneFailed.bind(this)
@@ -521,7 +505,7 @@ function createReaders(execlib,FileOperation,util) {
   DirReader.prototype.needParsing = function () {
     return this.options.needparsing && 
       (
-        this.options.filecontents.modulename === '*' ||
+        this.options.filecontents.parsermodulename === '*' ||
         this.options.filecontents.parsers
       );
   };
@@ -543,7 +527,7 @@ function createReaders(execlib,FileOperation,util) {
     }
   }
   DirReader.prototype.onMeta = function (defer, filename, meta) {
-    //console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
+    console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
     if (!meta) {
       defer.resolve(false);
       return;
@@ -666,7 +650,7 @@ function createReaders(execlib,FileOperation,util) {
 
 
   function readerFactory(name, path, options, defer) {
-    if(options.modulename || options.parserinstance){
+    if(options.parsermodulename || options.parserinstance){
       return new ParsedFileReader(name, path, options, defer);
     }
     if(options.traverse){

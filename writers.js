@@ -69,6 +69,8 @@ function createWriters(execlib,FileOperation) {
     }
     if(chunk instanceof Buffer){
       fs.write(this.fh, chunk, 0, chunk.length, null, this.onBufferWritten.bind(this, defer, writtenobj));
+    }else if (chunk === null) {
+      this.finishWriting(defer, 0);
     }else{
       fs.write(this.fh, chunk, null, 'utf8', this.onStringWritten.bind(this, defer));
     }
