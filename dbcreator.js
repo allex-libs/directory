@@ -175,6 +175,32 @@ function createHandler(execlib, util) {
     }
     return this.fileQ(name).write(options,defer);
   };
+  FileDataBase.prototype.create = function (name, creatoroptions, defer) {
+    //creatoroptions: {
+    //  modulename: ...,
+    //  propertyhash: {
+    //    ...
+    //  }
+    //}
+    if (!creatoroptions) {
+      defer.reject(new lib.Error('NO_CREATOR_OPTIONS'));
+      return;
+    }
+    if (!creatoroptions.modulename) {
+      defer.reject(new lib.Error('NO_MODULENAME_IN_CREATOR_OPTIONS', 'creatoroptions miss the modulename property'));
+      return;
+    }
+    if (!creatoroptions.propertyhash) {
+      defer.reject(new lib.Error('NO_PROPERTYHASH_IN_CREATOR_OPTIONS', 'creatoroptions miss the propertyhash property'));
+      return;
+    }
+    execlib.execSuite.dataGeneratorRegistry.spawn(creatoroptions.modulename, creatoroptions.propertyhash).done(
+      this.onDataGenerator.bind(this, name, defer),
+      defer.reject.bind(defer)
+    );
+  };
+  FileDataBase.prototype.onDataGenerator = function (name, defer, generator) {
+  };
   FileDataBase.prototype.close = function (defer) {
     this.closingDefer = defer || true;
     if (this.count<1) {
@@ -184,6 +210,7 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.fileQ = function (name) {
     return new FileQ(this, name, util.pathForFilename(this.rootpath,name));
   };
+  FileDataBase.prototype.commit = lib.dummyFunc;
 
   function FileDataBaseTxn(id, path, db) {
     this.id = id;
@@ -223,6 +250,7 @@ function createHandler(execlib, util) {
     writer.writeAll(data);
   }
   FileDataBase.prototype.writeToFileName = function (filename, parserinfo, data, defer) {
+    defer = defer || q.defer();
     if (data === null) {
       //just touch the file...
       /*
@@ -232,6 +260,10 @@ function createHandler(execlib, util) {
       */
     }
     this.write(filename, parserinfo, defer).then(allWriter.bind(null, data));
+    return defer.promise;
+  };
+  FileDataBase.prototype.writeFileMeta = function (filename, metadata, defer) {
+    return this.writeToFileName(this.metaPath(filename), {modulename: 'allex_jsonparser'}, metadata);
   };
 
   return FileDataBase;

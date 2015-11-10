@@ -157,13 +157,13 @@ function createWriters(execlib,FileOperation) {
     var chunk;
     defer = defer || q.defer();
     if(!object){
-      defer.reject();
+      defer.reject(new lib.Error('NO_OBJECT_TO_WRITE'));
     }else{
       chunk = this.parser.dataToFile(object);
       if(chunk){
         FileWriter.prototype.write.call(this, chunk, defer);
       }else{
-        defer.reject(object);
+        defer.reject(new lib.Error('INVALID_UNPARSING', JSON.stringify(object)));
       }
     }
     return defer.promise;
