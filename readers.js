@@ -120,23 +120,32 @@ function createReaders(execlib,FileOperation,util) {
     if (!(this.originalFS && this.originalFS.size)) {
       return;
     }
-    var size = Math.min(this.originalFS.size-this.result, 0xffff);
-    //console.log('size', this.originalFS.size, 'read', this.result, 'to read', size);
+    var offset = (this.options.start||0)+this.result,
+      size;
+    if (this.options.quantity) {
+     size = Math.min(this.options.quantity-this.result, 0xffb0);
+    } else {
+     size = Math.min(this.originalFS.size-offset, 0xffb0);
+    }
     if (size < 1) {
       this.destroy();
       return;
     }
-    this.read(this.result, size).then(
-      this.optionallyStep.bind(this),
+    //console.log('size', this.originalFS.size, 'read from', offset, 'to read', size, 'with options', this.options);
+    this.read(offset, size).then(
+      //this.optionallyStep.bind(this),
+      this.step.bind(this),
       this.fail.bind(this),
       this.onChunk.bind(this)
     );
   };
+  /*
   FileTransmitter.prototype.optionallyStep = function () {
     if (!this.options.stepping) {
       this.step();
     }
   };
+  */
   FileTransmitter.prototype.onChunk = function (chunk) {
     this.result += chunk.length;
     this.notify(chunk);
@@ -527,7 +536,7 @@ function createReaders(execlib,FileOperation,util) {
     }
   }
   DirReader.prototype.onMeta = function (defer, filename, meta) {
-    console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
+    //console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
     if (!meta) {
       defer.resolve(false);
       return;

@@ -54,9 +54,12 @@ function createHandler(execlib, util) {
     return writer.openDefer.promise;
   };
   FileQ.prototype.handleReader = function (reader) {
+    console.log('FileQ', this.name, 'should handleReader');
     if (this.writePromise) {
+      console.log('q-ing');
       this.push({item:reader,type:'reader'});
     }else{
+      console.log('letting');
       this.activeReaders++;
       reader.defer.promise.then(this.readerDown.bind(this));
       reader.go();
@@ -71,7 +74,11 @@ function createHandler(execlib, util) {
         console.log('what the @! is writer defer?', writer.defer);
         process.exit(1);
       }
-      this.writePromise.then(this.writerDown.bind(this));
+      this.writePromise.then(
+        this.writerDown.bind(this),
+        this.writerDown.bind(this),
+        this.writerWorks.bind(this)
+      );
       writer.go();
     }
   };
@@ -90,23 +97,27 @@ function createHandler(execlib, util) {
       this.finalizeWriterDown(result);
     }
   };
+  FileQ.prototype.writerWorks = function (chunk) {
+    this.database.changed.fire(this.name, null, null);
+  };
   FileQ.prototype.finalizeWriterDown = function (originalfs, newfstats) {
     this.database.changed.fire(this.name, originalfs, newfstats);
     this.writePromise = null;
     this.handleQ();
   };
   FileQ.prototype.handleQ = function () {
-    //console.log(this.name, 'time for next', this.length);
+    console.log(this.name, 'time for next', this.length);
     if (this.length < 1) {
       this.destroy();
       return;
     }
     var j = this.pop();
+    console.log(this.name, 'it is a', j.type);
     switch (j.type) {
       case 'reader':
-        return handleReader(j.item);
+        return this.handleReader(j.item);
       case 'writer':
-        return handleWriter(j.item);
+        return this.handleWriter(j.item);
       default:
         lib.runNext(this.handleQ.bind(this));
         break;

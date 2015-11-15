@@ -121,6 +121,7 @@ function createWriters(execlib,FileOperation) {
   };
   RawFileWriter.prototype.onWritten = function (bytes) {
     this.result += bytes;
+    this.notify(this.result);
   };
 
   function ParsedFileWriter(name, path, parsermodulename, parserpropertyhash, defer) {
@@ -128,9 +129,11 @@ function createWriters(execlib,FileOperation) {
     this.modulename = parsermodulename;
     this.prophash = parserpropertyhash;
     this.parser = null;
+    this.recordsWritten = 0;
   }
   lib.inherit(ParsedFileWriter,FileWriter);
   ParsedFileWriter.prototype.destroy = function () {
+    this.recordsWritten = null;
     if (this.parser) {
       this.parser.destroy();
     }
@@ -161,12 +164,18 @@ function createWriters(execlib,FileOperation) {
     }else{
       chunk = this.parser.dataToFile(object);
       if(chunk){
+        defer.promise.done(
+          this.onWritten.bind(this)
+        );
         FileWriter.prototype.write.call(this, chunk, defer);
       }else{
         defer.reject(new lib.Error('INVALID_UNPARSING', JSON.stringify(object)));
       }
     }
     return defer.promise;
+  };
+  ParsedFileWriter.prototype.onWritten = function () {
+    this.notify(++this.recordsWritten);
   };
   ParsedFileWriter.prototype.writeAll = function (object) {
     this.write(object).then(this.onAllWritten.bind(this, object));
