@@ -9,11 +9,11 @@ function createHandler(execlib, util) {
     writerFactory = require('./writers')(execlib,FileOperation);
 
   function FileQ(database, name, path) {
-    lib.Fifo.call(this);
     var fq = database.get(name);
     if(fq){
       return fq;
     }
+    lib.Fifo.call(this);
     this.database = database;
     this.name = name;
     this.path = path;
@@ -24,6 +24,9 @@ function createHandler(execlib, util) {
   lib.inherit(FileQ,lib.Fifo);
   FileQ.prototype.destroy = function () {
     //console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
+    if (this.length) {
+      throw new lib.Error('FILEQ_STILL_NOT_EMPTY');
+    }
     this.database.remove(this.name);
     this.activeReaders = null;
     this.writePromise = null;
@@ -54,12 +57,12 @@ function createHandler(execlib, util) {
     return writer.openDefer.promise;
   };
   FileQ.prototype.handleReader = function (reader) {
-    console.log('FileQ', this.name, 'should handleReader');
+    //console.log('FileQ', this.name, 'should handleReader');
     if (this.writePromise) {
-      console.log('q-ing');
+      //console.log('q-ing');
       this.push({item:reader,type:'reader'});
     }else{
-      console.log('letting');
+      //console.log('letting');
       this.activeReaders++;
       reader.defer.promise.then(this.readerDown.bind(this));
       reader.go();
@@ -106,7 +109,7 @@ function createHandler(execlib, util) {
     this.handleQ();
   };
   FileQ.prototype.handleQ = function () {
-    console.log(this.name, 'time for next', this.length);
+    //console.log(this.name, 'time for next', this.length);
     if (this.length < 1) {
       this.destroy();
       return;

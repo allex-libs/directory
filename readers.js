@@ -101,6 +101,11 @@ function createReaders(execlib,FileOperation,util) {
     this.buffer = null;
   }
   lib.inherit(FileTransmitter,FileReader);
+  FileTransmitter.prototype.destroy = function () {
+    this.buffer = null;
+    this.options = null;
+    FileReader.prototype.destroy.call(this);
+  };
   FileTransmitter.prototype.go = function () {
     this.result = 0;
     this.size().then(
