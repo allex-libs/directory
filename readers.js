@@ -270,7 +270,7 @@ function createReaders(execlib,FileOperation,util) {
   };
 
   function HRFReader(filereader, filesize, parser) {
-    console.log('new HRFReader', filesize);
+    //console.log('new HRFReader', filesize);
     lib.AsyncJob.call(this);
     this.reader = filereader;
     this.parser = parser;
@@ -467,10 +467,13 @@ function createReaders(execlib,FileOperation,util) {
     var filename;
     if (filelist.length) {
       filename = filelist.pop();
+      //console.log('processFileName', filename, filelist, 'left');
       this.processFileName(filename).done(
         this.processSuccess.bind(this,filelist,filename),
         this.fail.bind(this)
       );
+    } else {
+      this.destroy();
     }
   };
   DirReader.prototype.processSuccess = function (filelist, filename, result) {
@@ -483,32 +486,39 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.checkDone = function () {
     if(this.filecount===this.result){
+      //console.log('DirReader destroying because', this.filecount, '===', this.result);
       this.destroy();
     };
   };
   DirReader.prototype.oneDone = function () {
     //console.log(this.name,'oneDone');
     this.result ++;
+    //console.log('this.result is now', this.result);
     this.checkDone();
   };
   DirReader.prototype.oneFailed = function () {
     //console.log(this.name,'oneFailed');
     this.filecount --;
+    //console.log('this.filecount is now', this.filecount);
     this.checkDone();
   };
   DirReader.prototype.processFileName = function (filename) {
-    var d = q.defer(), rd, metareader;
+    var d, rd, metareader;
+    if (!this.options) {
+      return q(false);
+    }
     if (this.options.files && this.options.files.indexOf(filename) < 0) {
-      d.resolve(false);
-      return d.promise;
+      return q(false);
     }
     //console.log(this.name, 'deciding wether to read .meta, this.parserInfo', this.parserInfo, 'this.options', this.options);
+    d = q.defer();
     if (this.needMeta()) {
       rd = q.defer();
+      //console.log('metareader for', filename);
       metareader = readerFactory(Path.join('.meta', filename), Path.join(this.path, '.meta', filename), {parsermodulename: 'allex_jsonparser'}, rd);
       rd.promise.done(
         this.onMeta.bind(this,d,filename),
-        this.oneFailed.bind(this)
+        d.resolve.bind(d, false)
       );
       metareader.go();
     } else {
