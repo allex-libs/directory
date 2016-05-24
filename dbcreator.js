@@ -24,7 +24,7 @@ function createHandler(execlib, util) {
   lib.inherit(FileQ,lib.Fifo);
   FileQ.prototype.destroy = function () {
     //console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
-    if (this.getFifoLength()) {
+    if (this.length) {
       throw new lib.Error('FILEQ_STILL_NOT_EMPTY');
     }
     this.database.remove(this.name);
@@ -110,11 +110,13 @@ function createHandler(execlib, util) {
   };
   FileQ.prototype.handleQ = function () {
     //console.log(this.name, 'time for next', this.length);
-    if (this.getFifoLength() < 1) {
+    if (this.length < 1) {
       this.destroy();
       return;
     }
-    var j = this.pop();
+    this.pop(this.drainer.bind(this));
+  };
+  FileQ.prototype.drainer = function (j) {
     console.log(this.name, 'it is a', j.type);
     switch (j.type) {
       case 'reader':
