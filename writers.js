@@ -97,14 +97,17 @@ function createWriters(execlib,FileOperation) {
       this.finishWriting(defer, written);
     }
   };
+  function popone (fw, pending) {
+    if(pending){
+      fw.iswriting = true;
+      fw._performWriting(pending[0],pending[1],{written:0});
+    }
+  }
   FileWriter.prototype.finishWriting = function (defer, writtenbytes) {
     this.iswriting = false;
+    //console.log('resolving', defer, 'with', writtenbytes);
     defer.resolve(writtenbytes);
-    var pending = this.q.pop();
-    if(pending){
-      this.iswriting = true;
-      this._performWriting(pending[0],pending[1],{written:0});
-    }
+    this.q.pop(popone.bind(null, this));
   };
 
   function RawFileWriter(name, path, defer){
