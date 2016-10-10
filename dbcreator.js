@@ -6,7 +6,8 @@ function createHandler(execlib, util) {
     q = lib.q,
     FileOperation = require('./fileoperationcreator')(execlib,util),
     readerFactory = require('./readers')(execlib,FileOperation,util),
-    writerFactory = require('./writers')(execlib,FileOperation);
+    writerFactory = require('./writers')(execlib,FileOperation),
+    _fqid=0;
 
   function FileQ(database, name, path) {
     var fq = database.get(name);
@@ -14,6 +15,7 @@ function createHandler(execlib, util) {
       return fq;
     }
     lib.Fifo.call(this);
+    this._id = ++_fqid;
     this.database = database;
     this.name = name;
     this.path = path;
@@ -24,6 +26,7 @@ function createHandler(execlib, util) {
   lib.inherit(FileQ,lib.Fifo);
   FileQ.prototype.destroy = function () {
     //console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
+    //console.log('FileQ', this._id, this.name, 'dying');
     if (this.length) {
       throw new lib.Error('FILEQ_STILL_NOT_EMPTY');
     }
@@ -39,6 +42,7 @@ function createHandler(execlib, util) {
     lib.Fifo.prototype.destroy.call(this);
   };
   FileQ.prototype.read = function (options, defer) {
+    //console.log(this.name, this.name ? 'live' : 'dead', 'with length of', this.length, 'going to read');
     defer = defer || q.defer();
     this.handleReader(readerFactory(this.name, this.path, options, defer));
     return defer.promise;
@@ -52,6 +56,9 @@ function createHandler(execlib, util) {
     return reader;
   };
   FileQ.prototype.write = function (options, defer) {
+    if (!this.database) {
+      throw new lib.Error('ALREADY_DEAD');
+    }
     var writer = writerFactory(this.name, this.path, options, defer);
     this.handleWriter(writer);
     return writer.openDefer.promise;
@@ -64,13 +71,18 @@ function createHandler(execlib, util) {
     }else{
       //console.log('letting');
       this.activeReaders++;
-      reader.defer.promise.then(this.readerDown.bind(this));
+      reader.defer.promise.then(
+        this.readerDown.bind(this),
+        this.readerDown.bind(this)
+      );
       reader.go();
     }
   };
   FileQ.prototype.handleWriter = function (writer) {
-    if (this.writePromise) {
+    //console.log('FileQ', this.name, this._id, 'handleWriter, already has writer', !!this.writePromise);
+    if (this.writePromise || this.activeReaders > 0) {
       this.push({item:writer,type:'writer'});
+      //console.log('now length is', this.length);
     }else{
       this.writePromise = writer.defer.promise;
       if (!(this.writePromise && this.writePromise.then)) {
@@ -82,6 +94,7 @@ function createHandler(execlib, util) {
         this.writerDown.bind(this),
         this.writerWorks.bind(this)
       );
+      //console.log('now length is', this.length);
       writer.go();
     }
   };
@@ -101,23 +114,30 @@ function createHandler(execlib, util) {
     }
   };
   FileQ.prototype.writerWorks = function (chunk) {
+    //console.log('FileQ', this.name, this._id, 'writerWorks');
     this.database.changed.fire(this.name, null, null);
   };
   FileQ.prototype.finalizeWriterDown = function (originalfs, newfstats) {
+    //console.log('FileQ', this.name, this._id, 'finalizeWriterDown');
     this.database.changed.fire(this.name, originalfs, newfstats);
     this.writePromise = null;
     this.handleQ();
   };
   FileQ.prototype.handleQ = function () {
     //console.log(this.name, 'time for next', this.length);
-    if (this.length < 1) {
-      this.destroy();
-      return;
+    if (this.activeReaders < 1) {
+      if (this.length > 0) {
+        this.pop(this.drainer.bind(this));
+        return;
+      } else {
+        if (!this.writePromise) {
+          this.destroy();
+        }
+      }
     }
-    this.pop(this.drainer.bind(this));
   };
   FileQ.prototype.drainer = function (j) {
-    console.log(this.name, 'it is a', j.type);
+    //console.log(this.name, 'it is a', j.type);
     switch (j.type) {
       case 'reader':
         return this.handleReader(j.item);

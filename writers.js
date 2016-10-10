@@ -4,10 +4,12 @@ var fs = require('fs'),
 function createWriters(execlib,FileOperation) {
   'use strict';
   var lib = execlib.lib,
-    q = lib.q;
+    q = lib.q,
+    _fwid = 0;
 
   function FileWriter(name, path, defer, append){
     FileOperation.call(this, name, path, defer);
+    this._id = ++_fwid;
     this.openMode = append ? 'a' : 'w';
     this.iswriting = false;
     this.q = new lib.Fifo();
@@ -67,7 +69,7 @@ function createWriters(execlib,FileOperation) {
       console.log('cannot write without my filehandle');
       return;
     }
-    if(chunk instanceof Buffer){
+    if(Buffer.isBuffer(chunk)){
       fs.write(this.fh, chunk, 0, chunk.length, null, this.onBufferWritten.bind(this, defer, writtenobj));
     }else if (chunk === null) {
       this.finishWriting(defer, 0);
@@ -179,11 +181,13 @@ function createWriters(execlib,FileOperation) {
   };
   ParsedFileWriter.prototype.onWritten = function () {
     this.notify(++this.recordsWritten);
+    //console.log('ParsedFileWriter', this._id, 'notifying recordsWritten', this.recordsWritten);
   };
   ParsedFileWriter.prototype.writeAll = function (object) {
     this.write(object).then(this.onAllWritten.bind(this, object));
   };
   ParsedFileWriter.prototype.onAllWritten = function (object) {
+    //console.log('ParsedFileWriter', this._id, 'onAllWritten', this.records);
     this.result = object;
     this.close();
   };
