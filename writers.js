@@ -111,9 +111,17 @@ function createWriters(execlib,FileOperation) {
     defer.resolve(writtenbytes);
     this.q.pop(popone.bind(null, this));
   };
+  FileWriter.prototype.writeAll = function (data) {
+    this.write(data).then(this.onAllWritten.bind(this, data));
+  };
+  FileWriter.prototype.onAllWritten = function (object) {
+    //console.log('FileWriter', this._id, 'onAllWritten', object);
+    this.result = object;
+    this.close();
+  };
 
-  function RawFileWriter(name, path, defer){
-    FileWriter.call(this, name, path, defer);
+  function RawFileWriter(name, path, defer, append){
+    FileWriter.call(this, name, path, defer, append);
     this.result = 0;
   }
   lib.inherit(RawFileWriter, FileWriter);
@@ -129,8 +137,8 @@ function createWriters(execlib,FileOperation) {
     this.notify(this.result);
   };
 
-  function ParsedFileWriter(name, path, parsermodulename, parserpropertyhash, defer) {
-    FileWriter.call(this, name, path, defer);
+  function ParsedFileWriter(name, path, parsermodulename, parserpropertyhash, defer, append) {
+    FileWriter.call(this, name, path, defer, append);
     this.modulename = parsermodulename;
     this.prophash = parserpropertyhash;
     this.parser = null;
@@ -183,17 +191,9 @@ function createWriters(execlib,FileOperation) {
     this.notify(++this.recordsWritten);
     //console.log('ParsedFileWriter', this._id, 'notifying recordsWritten', this.recordsWritten);
   };
-  ParsedFileWriter.prototype.writeAll = function (object) {
-    this.write(object).then(this.onAllWritten.bind(this, object));
-  };
-  ParsedFileWriter.prototype.onAllWritten = function (object) {
-    //console.log('ParsedFileWriter', this._id, 'onAllWritten', this.records);
-    this.result = object;
-    this.close();
-  };
 
-  function PerFileParsedFileWriter(name, path, parsermodulename, parserpropertyhash, defer) {
-    ParsedFileWriter.call(this,name, path, parsermodulename, parserpropertyhash, defer);
+  function PerFileParsedFileWriter(name, path, parsermodulename, parserpropertyhash, defer, append) {
+    ParsedFileWriter.call(this,name, path, parsermodulename, parserpropertyhash, defer, append);
   }
   lib.inherit(PerFileParsedFileWriter, ParsedFileWriter);
   PerFileParsedFileWriter.prototype.go = function () {
@@ -253,14 +253,14 @@ function createWriters(execlib,FileOperation) {
     if (options.modulename){
       if (options.typed) {
         //console.log('for',name,'returning new ParsedFileWriter');
-        return new ParsedFileWriter(name, path, options.modulename, options.propertyhash, defer);
+        return new ParsedFileWriter(name, path, options.modulename, options.propertyhash, defer, options.append);
       } else {
         //console.log('for',name,'returning new PerFileParsedFileWriter');
-        return new PerFileParsedFileWriter(name, path, options.modulename, options.propertyhash, defer);
+        return new PerFileParsedFileWriter(name, path, options.modulename, options.propertyhash, defer, options.append);
       }
     }
     //console.log('for',name,'returning new RawFileWriter');
-    return new RawFileWriter(name, path, defer);
+    return new RawFileWriter(name, path, defer, options.append);
   }
   return writerFactory;
 }
