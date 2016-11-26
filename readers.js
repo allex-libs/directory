@@ -527,7 +527,7 @@ function createReaders(execlib,FileOperation,util) {
     return d.promise;
   };
   DirReader.prototype.needParsing = function () {
-    return this.options.needparsing && 
+    return this.options && this.options.needparsing && 
       (
         this.options.filecontents.parsermodulename === '*' ||
         this.options.filecontents.parsers
@@ -553,6 +553,10 @@ function createReaders(execlib,FileOperation,util) {
   DirReader.prototype.onMeta = function (defer, filename, meta) {
     //console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
     if (!meta) {
+      defer.resolve(false);
+      return;
+    }
+    if (!this.options) {
       defer.resolve(false);
       return;
     }
