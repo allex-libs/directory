@@ -250,7 +250,12 @@ function createReaders(execlib,FileOperation,util) {
   };
   ParsedFileReader.prototype.onBufferReadForVariableLengthRecord = function (parser, buff, offsetobj, bytesread) {
     //console.log('csv bytes read', bytesread);
+    var fr, records;
     if (!bytesread) {
+      fr = parser.finalize();
+      if (fr) {
+        this.notify(fr);
+      }
       parser.destroy();
       this.result = offsetobj.offset;
       this.close();
@@ -258,7 +263,7 @@ function createReaders(execlib,FileOperation,util) {
     }
     buff = buff.length === bytesread ? buff : buff.slice(0, bytesread);
     try {
-      var records = parser.fileToData(buff);
+      records = parser.fileToData(buff);
       //console.log('records', records);
       //console.log(records.length, 'records');
       records.forEach(this.notify.bind(this));
@@ -332,6 +337,7 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   HRFReader.prototype.onRead = function (err, bytesread, buffer) {
+    //console.log('onRead', bytesread);
     if (buffer === this.header) {
       this.header = null;
       this.parser.onHeader(buffer);
@@ -349,11 +355,7 @@ function createReaders(execlib,FileOperation,util) {
       this.footer = null;
       this.parser.onFooter(buffer);
     }
-    if (!(this.reader.result%100)) {
-      lib.runNext(this.read.bind(this), 100);
-    } else {
-      this.read();
-    }
+    this.read();
   };
   HRFReader.prototype.onRecord = function (record) {
     var rec;
@@ -552,6 +554,7 @@ function createReaders(execlib,FileOperation,util) {
   }
   DirReader.prototype.onMeta = function (defer, filename, meta) {
     //console.log(this.name, 'onMeta', filename, meta, require('util').inspect(this.options, {depth:null}));
+    var parserfound, metainfo;
     if (!meta) {
       defer.resolve(false);
       return;
@@ -562,7 +565,7 @@ function createReaders(execlib,FileOperation,util) {
     }
     if (this.options.filecontents && this.options.filecontents.parsers) {
       //console.log('looking for', meta.parserinfo.modulename, 'in', this.options.filecontents.parsers);
-      var parserfound = this.options.filecontents.parsers[meta.parserinfo.modulename];
+      parserfound = this.options.filecontents.parsers[meta.parserinfo.modulename];
       //console.log('found', parserfound);
       if (!parserfound) {
         defer.resolve(false);
@@ -570,6 +573,11 @@ function createReaders(execlib,FileOperation,util) {
       }
       //console.log('found', parserfound);
       meta.parserinfo.propertyhash = lib.extend({}, meta.parserinfo.propertyhash, parserfound.propertyhash);
+    }
+    metainfo = {};
+    if (this.options.metastats) {
+      this.options.metastats.forEach(fillMetaInfo.bind(null, meta, metainfo));
+      this.options.metainfo = metainfo;
     }
     if (this.needParsing()) {
       if (!meta.parserinfo) {
@@ -582,9 +590,6 @@ function createReaders(execlib,FileOperation,util) {
         defer.resolve.bind(defer,false)
       );
     } else {
-      var metainfo = {};
-      this.options.metastats.forEach(fillMetaInfo.bind(null, meta, metainfo));
-      this.options.metainfo = metainfo;
       this.checkFStats(defer, filename);
     }
   };
@@ -603,7 +608,7 @@ function createReaders(execlib,FileOperation,util) {
     return this.options.filestats || this.options.filetypes;
   };
   DirReader.prototype.reportFile = function (filename, reportobj) {
-    //console.log('reportFile', filename, this.parserInfo);
+    //console.log('reportFile', filename, 'this.parserInfo', this.parserInfo, '=>', reportobj);
     if (this.options.needparsing) {
       var d = q.defer(),
         parser = readerFactory(filename, Path.join(this.path,filename), {parserinstance:this.parserInfo.instance}, d);
@@ -616,7 +621,7 @@ function createReaders(execlib,FileOperation,util) {
       parser.go();
     } else {
       var data = lib.extend(reportobj.data, this.options.metainfo);
-      //console.log(filename, '=>', data);
+      //console.log(filename, '=>', data, this.options);
       this.notify(data || filename);
       reportobj.defer.resolve(true);
     }
@@ -631,7 +636,9 @@ function createReaders(execlib,FileOperation,util) {
     lib.traverse(statsobj,function(statsitem, statsname){
       parsedrecord[statsname] = statsitem;
     });
+    lib.extend(parsedrecord, this.options.metainfo);
     this.notify(parsedrecord);
+    parsedrecord = null;
   };
   DirReader.prototype.onFileStats = function (defer, filename, err, fstats, stats) {
     stats = stats || {};
