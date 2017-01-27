@@ -74,6 +74,7 @@ function createUtil(execlib){
         }else{
           defer.resolve(fstats.size);
         }
+        defer = null;
       });
     }else{
       try{
@@ -94,6 +95,7 @@ function createUtil(execlib){
         }else{
           defer.resolve(fstats);
         }
+        defer = null;
       });
     }else{
       try{
