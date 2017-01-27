@@ -605,7 +605,7 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   DirReader.prototype.needsFStats = function () {
-    return this.options.filestats || this.options.filetypes;
+    return this.options ? this.options.filestats || this.options.filetypes : false;
   };
   DirReader.prototype.reportFile = function (filename, reportobj) {
     //console.log('reportFile', filename, 'this.parserInfo', this.parserInfo, '=>', reportobj);
