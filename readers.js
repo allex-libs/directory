@@ -323,6 +323,10 @@ function createReaders(execlib,FileOperation,util) {
   };
   HRFReader.prototype.read = function () {
     var buff;
+    if (!(this.reader && this.reader.fh)) {
+      this.destroy();
+      return;
+    }
     if (this.header) {
       buff = this.header;
     } else if (this.record){
@@ -378,7 +382,11 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   HRFReader.prototype.finalize = function () {
-    var rec = this.parser.finalize();
+    var rec;
+    if (!this.parser) {
+      return;
+    }
+    rec = this.parser.finalize();
     if (lib.defined(rec)) {
       this.reader.result++;
       this.reader.notify(rec);
