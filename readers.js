@@ -344,7 +344,9 @@ function createReaders(execlib,FileOperation,util) {
     //console.log('onRead', bytesread);
     if (buffer === this.header) {
       this.header = null;
-      this.parser.onHeader(buffer);
+      if (lib.isFunction(this.parser.onHeader)) {
+        this.parser.onHeader(buffer);
+      }
       //set this.record to new Buffer(this.parser.recordDelimiter)
     } else if (buffer === this.record) {
       this.recordstoread --;
