@@ -359,7 +359,9 @@ function createReaders(execlib,FileOperation,util) {
       }
     } else if (buffer === this.footer) {
       this.footer = null;
-      this.parser.onFooter(buffer);
+      if (lib.isFunction(this.parser.onFooter)) {
+        this.parser.onFooter(buffer);
+      }
     }
     this.read();
   };
