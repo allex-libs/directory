@@ -108,13 +108,29 @@ function createUtil(execlib){
     }
   }
 
+  var _dotCharCode = ".".charCodeAt(0);
+
+  function changeExtension (filename, ext) {
+    var dotindex = -1, fnl = filename.length, i;
+    for (i=fnl-1; i>0 && dotindex<0; i--) {
+      if (filename.charCodeAt(i) === _dotCharCode) {
+        dotindex = i;
+      }
+    }
+    if (dotindex>=0) {
+      return filename.substring(0, dotindex)+ext;
+    }
+    return filename+ext;
+  }
+
   return {
     satisfyPath: satisfyPath,
     pathForFilename: pathForFilename,
     fileSize: fileSize,
     fileType: fileType,
     FStats: FStats,
-    typeFromStats: typeFromStats
+    typeFromStats: typeFromStats,
+    changeExtension: changeExtension
   };
 }
 

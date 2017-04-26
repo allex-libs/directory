@@ -246,11 +246,11 @@ function createWriters(execlib,FileOperation) {
   };
 
   function writerFactory(name, path, options, defer) {
-    if (options.txndirname) {
+    if (options && options.txndirname) {
       //console.log('for',name,'returning new TxnCommiter');
       return new TxnCommiter(options.txndirname, name, path, defer);
     }
-    if (options.modulename){
+    if (options && options.modulename){
       if (options.typed) {
         //console.log('for',name,'returning new ParsedFileWriter');
         return new ParsedFileWriter(name, path, options.modulename, options.propertyhash, defer, options.append);
@@ -260,7 +260,7 @@ function createWriters(execlib,FileOperation) {
       }
     }
     //console.log('for',name,'returning new RawFileWriter');
-    return new RawFileWriter(name, path, defer, options.append);
+    return new RawFileWriter(name, path, defer, options ? options.append : false);
   }
   return writerFactory;
 }

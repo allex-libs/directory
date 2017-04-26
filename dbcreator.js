@@ -25,7 +25,7 @@ function createHandler(execlib, util) {
   }
   lib.inherit(FileQ,lib.Fifo);
   FileQ.prototype.destroy = function () {
-    //console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
+    console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
     //console.log('FileQ', this._id, this.name, 'dying');
     if (this.length) {
       throw new lib.Error('FILEQ_STILL_NOT_EMPTY');
@@ -59,9 +59,26 @@ function createHandler(execlib, util) {
     if (!this.database) {
       throw new lib.Error('ALREADY_DEAD');
     }
+    defer = defer || q.defer();
     var writer = writerFactory(this.name, this.path, options, defer);
     this.handleWriter(writer);
     return writer.openDefer.promise;
+  };
+  FileQ.prototype.drop = function (defer) {
+    var dropper;
+    defer = defer || q.defer();
+    defer.promise.then(this.handleQ.bind(this));
+    dropper = new FileOperation(this.name, this.path, defer);
+    dropper.drop();
+    return defer.promise;
+  };
+  FileQ.prototype.move = function (newname, defer) {
+    var mover;
+    defer = defer || q.defer();
+    defer.promise.then(this.handleQ.bind(this));
+    mover = new FileOperation(this.name, this.path, defer);
+    mover.move(newname);
+    return defer.promise;
   };
   FileQ.prototype.handleReader = function (reader) {
     //console.log('FileQ', this.name, 'should handleReader');
@@ -210,6 +227,24 @@ function createHandler(execlib, util) {
       return;
     }
     return this.fileQ(name).write(options,defer);
+  };
+  FileDataBase.prototype.drop = function (name, defer) {
+    if(this.closingDefer){
+      if(defer){
+        defer.resolve(false);
+      }
+      return;
+    }
+    return this.fileQ(name).drop(defer);
+  };
+  FileDataBase.prototype.move = function (name, newname, defer) {
+    if(this.closingDefer){
+      if(defer){
+        defer.resolve(false);
+      }
+      return;
+    }
+    return this.fileQ(name).move(newname, defer);
   };
   FileDataBase.prototype.create = function (name, creatoroptions, defer) {
     //creatoroptions: {
