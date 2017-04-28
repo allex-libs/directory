@@ -4,7 +4,8 @@ var fs = require('fs'),
 
 function createUtil(execlib){
   'use strict';
-  var lib = execlib.lib;
+  var lib = execlib.lib,
+    q = lib.q;
 
   function surePath(path) {
     if (lib.isArray(path)) {
@@ -123,6 +124,20 @@ function createUtil(execlib){
     return filename+ext;
   }
 
+  function chunkWriter (chunk, writer) {
+    var ret = writer.write(chunk).then(writer.close.bind(writer));
+    chunk = null;
+    return ret;
+  }
+
+  function writeToFile (db, filename, text, doappend) {
+    var d = q.defer();
+    db.write(filename, {append:doappend}, d).then(
+      chunkWriter.bind(null, text)
+    );
+    return d.promise;
+  }
+
   return {
     satisfyPath: satisfyPath,
     pathForFilename: pathForFilename,
@@ -130,7 +145,8 @@ function createUtil(execlib){
     fileType: fileType,
     FStats: FStats,
     typeFromStats: typeFromStats,
-    changeExtension: changeExtension
+    changeExtension: changeExtension,
+    writeToFile: writeToFile
   };
 }
 

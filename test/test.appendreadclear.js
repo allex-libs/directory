@@ -34,14 +34,7 @@ AppendReadClearJob.prototype.produceAppendPromises = function () {
   return ret;
 };
 AppendReadClearJob.prototype.lineWriter = function (line) {
-  var d = q.defer();
-  this.db.write(this.fileName, {append:true}, d).then(
-    (writer) => {
-      writer.write(line).then(writer.close.bind(writer));
-      line = null;
-    }
-  );
-  return d.promise;
+  return directorylib.util.writeToFile(this.db, this.fileName, line, true);
 };
 AppendReadClearJob.prototype.checkAgainstExpected = function (read) {
   if (read !== this.expected) {
