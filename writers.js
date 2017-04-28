@@ -30,6 +30,7 @@ function createWriters(execlib,FileOperation) {
     this.result = this.originalFS;
     FileOperation.prototype.destroy.call(this);
   };
+  FileWriter.prototype.exclusive = true;
   FileWriter.prototype.go = function () {
     if (this.active) {
       return;

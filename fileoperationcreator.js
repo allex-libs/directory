@@ -142,80 +142,8 @@ function createFileOperation(execlib, util) {
     this.fh = null;
     this.destroy();
   };
-  FileOperation.prototype.drop = function () {
-    if(this.fh){
-      fs.close(this.fh,this.onClosedForDrop.bind(this));
-    }else{
-      this.onClosedForDrop();
-    }
-  };
-  FileOperation.prototype.onClosedForDrop = function (err) {
-    if (err) {
-      this.error = err;
-      this.destroy();
-      return;
-    }
-    fs.unlink(this.path, this.onUnlinked.bind(this));
-  };
-  FileOperation.prototype.onUnlinked = function (err) {
-    if (err) {
-      this.error = err;
-      this.destroy();
-      return;
-    }
-    fs.access(this.metaName(), this.onMetaCheckForDrop.bind(this));
-  };
-  FileOperation.prototype.onMetaCheckForDrop = function (err) {
-    if (err) {
-      //ok, no meta
-      this.result = true;
-      this.destroy();
-      return;
-    }
-    fs.unlink(this.metaName(), this.onMetaUnlinked.bind(this));
-  };
-  FileOperation.prototype.onMetaUnlinked = function (ignoreerr) {
-    this.result = true;
-    this.destroy();
-  };
   FileOperation.prototype.metaName = function (name) {
     return Path.join(Path.dirname(this.path), '.meta', name || this.name);
-  };
-  FileOperation.prototype.move = function (newname) {
-    if(this.fh){
-      fs.close(this.fh,this.onClosedForMove.bind(this, newname));
-    }else{
-      this.onClosedForMove();
-    }
-  };
-  FileOperation.prototype.onClosedForMove = function (newname, err) {
-    if (err) {
-      this.error = err;
-      this.destroy();
-      return;
-    }
-    fs.rename(this.path, newname, this.onRenamed.bind(this, newname));
-  };
-  FileOperation.prototype.onRenamed = function (newname, err) {
-    if (err) {
-      this.error = err;
-      this.destroy();
-      return;
-    }
-    fs.access(this.metaName(), this.onMetaCheckForMove.bind(this, newname));
-  };
-  FileOperation.prototype.onMetaCheckForMove = function (newname, err) {
-    if (err) {
-      //ok, no meta
-      this.result = true;
-      this.destroy();
-      return;
-    }
-    fs.rename(this.metaName(), this.metaName(newname), this.onMetaMoved.bind(this));
-  };
-  FileOperation.prototype.onMetaMoved = function (err) {
-    this.result = true;
-    this.destroy();
   };
 
   return FileOperation;

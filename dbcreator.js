@@ -7,6 +7,8 @@ function createHandler(execlib, util) {
     FileOperation = require('./fileoperationcreator')(execlib,util),
     readerFactory = require('./readers')(execlib,FileOperation,util),
     writerFactory = require('./writers')(execlib,FileOperation),
+    Dropper = require('./droppercreator')(execlib,FileOperation),
+    Mover = require('./movercreator')(execlib,FileOperation),
     _fqid=0;
 
   function FileQ(database, name, path) {
@@ -19,20 +21,30 @@ function createHandler(execlib, util) {
     this.database = database;
     this.name = name;
     this.path = path;
-    this.writePromise = null;
-    this.activeReaders = 0;
+    this.exclusivePromise = null;
+    this.nonExclusiveCount = 0;
+    this.nonExclusiveDowner = this.nonExclusiveDown.bind(this);
+    this.exclusiveDowner = this.exclusiveDown.bind(this);
+    this.exclusiveWorkser = this.exclusiveWorks.bind(this);
+    this.finalizeExclusiveer = this.finalizeExclusive.bind(this);
+    this.handleQItemer = this.handleQItem.bind(this);
     database.add(name,this);
   }
   lib.inherit(FileQ,lib.Fifo);
   FileQ.prototype.destroy = function () {
-    console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
+    //console.log('FileQ', this.name, 'dying, associated database', this.database.rootpath, this.database.closingDefer ? 'should die as well' : 'will keep on living');
     //console.log('FileQ', this._id, this.name, 'dying');
     if (this.length) {
       throw new lib.Error('FILEQ_STILL_NOT_EMPTY');
     }
     this.database.remove(this.name);
-    this.activeReaders = null;
-    this.writePromise = null;
+    this.handleQItemer = null;
+    this.finalizeExclusiveer = null;
+    this.exclusiveWorkser = null;
+    this.exclusiveDowner = null;
+    this.nonExclusiveDowner = null;
+    this.nonExclusiveCount = null;
+    this.exclusivePromise = null;
     this.path = null;
     this.name = null;
     if (this.database.closingDefer) {
@@ -44,7 +56,7 @@ function createHandler(execlib, util) {
   FileQ.prototype.read = function (options, defer) {
     //console.log(this.name, this.name ? 'live' : 'dead', 'with length of', this.length, 'going to read');
     defer = defer || q.defer();
-    this.handleReader(readerFactory(this.name, this.path, options, defer));
+    this.handleQItem(readerFactory(this.name, this.path, options, defer));
     return defer.promise;
   };
   FileQ.prototype.stepread = function (options, defer) {
@@ -52,7 +64,7 @@ function createHandler(execlib, util) {
     options = options || {};
     options.stepping = true;
     var reader = readerFactory(this.name, this.path, options, defer);
-    this.handleReader(reader);
+    this.handleQItem(reader);
     return reader;
   };
   FileQ.prototype.write = function (options, defer) {
@@ -61,108 +73,106 @@ function createHandler(execlib, util) {
     }
     defer = defer || q.defer();
     var writer = writerFactory(this.name, this.path, options, defer);
-    this.handleWriter(writer);
+    this.handleQItem(writer);
     return writer.openDefer.promise;
   };
   FileQ.prototype.drop = function (defer) {
-    var dropper;
+    var dropper, dropper;
     defer = defer || q.defer();
-    defer.promise.then(this.handleQ.bind(this));
-    dropper = new FileOperation(this.name, this.path, defer);
-    dropper.drop();
-    return defer.promise;
+    dropper = new Dropper(this.name, this.path, defer);
+    this.handleQItem(dropper);
+    return dropper.openDefer.promise;
   };
-  FileQ.prototype.move = function (newname, defer) {
+  FileQ.prototype.move = function (defer) {
     var mover;
     defer = defer || q.defer();
-    defer.promise.then(this.handleQ.bind(this));
-    mover = new FileOperation(this.name, this.path, defer);
-    mover.move(newname);
-    return defer.promise;
+    mover = new Mover(this.name, this.path, defer);
+    this.handleQItem(mover);
+    return mover.openDefer.promise;
   };
-  FileQ.prototype.handleReader = function (reader) {
-    //console.log('FileQ', this.name, 'should handleReader');
-    if (this.writePromise) {
+  FileQ.prototype.handleQItem = function (j) {
+    if (j.exclusive) {
+      return this.handleExclusive(j);
+    }
+    return this.handleNonExclusive(j);
+  }
+  FileQ.prototype.handleNonExclusive = function (nonexc) {
+    //console.log('FileQ', this.name, 'should handleNonExclusive');
+    if (this.exclusivePromise) {
       //console.log('q-ing');
-      this.push({item:reader,type:'reader'});
+      this.push(nonexc);
     }else{
       //console.log('letting');
-      this.activeReaders++;
-      reader.defer.promise.then(
-        this.readerDown.bind(this),
-        this.readerDown.bind(this)
+      this.nonExclusiveCount++;
+      nonexc.defer.promise.then(
+        this.nonExclusiveDowner,
+        this.nonExclusiveDowner
       );
-      reader.go();
+      if (!nonexc.go) {
+        console.error('dafuq', nonexc.constructor.name, 'has no go', nonexc);
+      }
+      nonexc.go();
     }
   };
-  FileQ.prototype.handleWriter = function (writer) {
-    //console.log('FileQ', this.name, this._id, 'handleWriter, already has writer', !!this.writePromise);
-    if (this.writePromise || this.activeReaders > 0) {
-      this.push({item:writer,type:'writer'});
+  FileQ.prototype.handleExclusive = function (exc) {
+    //console.log('FileQ', this.name, this._id, 'handleExclusive, already has exc', !!this.exclusivePromise);
+    if (this.exclusivePromise || this.nonExclusiveCount > 0) {
+      this.push(exc);
       //console.log('now length is', this.length);
     }else{
-      this.writePromise = writer.defer.promise;
-      if (!(this.writePromise && this.writePromise.then)) {
-        console.log('what the @! is writer defer?', writer.defer);
+      this.exclusivePromise = exc.defer.promise;
+      if (!(this.exclusivePromise && this.exclusivePromise.then)) {
+        console.log('what the @! is exc defer?', exc.defer);
         process.exit(1);
       }
-      this.writePromise.then(
-        this.writerDown.bind(this),
-        this.writerDown.bind(this),
-        this.writerWorks.bind(this)
+      this.exclusivePromise.then(
+        this.exclusiveDowner,
+        this.exclusiveDowner,
+        this.exclusiveWorkser
       );
       //console.log('now length is', this.length);
-      writer.go();
+      exc.go();
     }
   };
-  FileQ.prototype.readerDown = function () {
-    this.activeReaders--;
+  FileQ.prototype.nonExclusiveDown = function () {
+    this.nonExclusiveCount--;
     this.handleQ();
   };
-  FileQ.prototype.writerDown = function (result) {
-    if (result) {
-      var d = q.defer();
-      util.FStats(this.path, d);
-      d.promise.done(
-        this.finalizeWriterDown.bind(this, result)
-      );
-    } else {
-      this.finalizeWriterDown(result);
-    }
+  FileQ.prototype.exclusiveDown = function (result) {
+    this.fireDataBaseChanged(result).then(
+      this.finalizeExclusiveer
+    );
   };
-  FileQ.prototype.writerWorks = function (chunk) {
-    //console.log('FileQ', this.name, this._id, 'writerWorks');
+  FileQ.prototype.exclusiveWorks = function (chunk) {
+    //console.log('FileQ', this.name, this._id, 'exclusiveWorks');
     this.database.changed.fire(this.name, null, null);
   };
-  FileQ.prototype.finalizeWriterDown = function (originalfs, newfstats) {
-    //console.log('FileQ', this.name, this._id, 'finalizeWriterDown');
-    this.database.changed.fire(this.name, originalfs, newfstats);
-    this.writePromise = null;
+  FileQ.prototype.finalizeExclusive = function () {
+    //console.log('FileQ', this.name, this._id, 'finalizeExclusive');
+    this.exclusivePromise = null;
     this.handleQ();
+  };
+  FileQ.prototype.fireDataBaseChanged = function (originalfs) {
+    var d = q.defer();
+    util.FStats(this.path, d);
+    return d.promise.then(
+      this.onFStatsForFireDataBaseChanged.bind(this, originalfs)
+    );
+  };
+  FileQ.prototype.onFStatsForFireDataBaseChanged = function (originalfs, newfstats) {
+    this.database.changed.fire(this.name, originalfs, newfstats);
   };
   FileQ.prototype.handleQ = function () {
     //console.log(this.name, 'time for next', this.length);
-    if (this.activeReaders < 1) {
+    if (this.nonExclusiveCount < 1) {
       if (this.length > 0) {
-        this.pop(this.drainer.bind(this));
+        this.pop(this.handleQItemer);
         return;
       } else {
-        if (!this.writePromise) {
+        if (!this.exclusivePromise) {
           this.destroy();
         }
       }
-    }
-  };
-  FileQ.prototype.drainer = function (j) {
-    //console.log(this.name, 'it is a', j.type);
-    switch (j.type) {
-      case 'reader':
-        return this.handleReader(j.item);
-      case 'writer':
-        return this.handleWriter(j.item);
-      default:
-        lib.runNext(this.handleQ.bind(this));
-        break;
     }
   };
 
@@ -228,6 +238,11 @@ function createHandler(execlib, util) {
     }
     return this.fileQ(name).write(options,defer);
   };
+  function doDrop (dropper) {
+    var ret = dropper.defer.promise;
+    dropper.drop();
+    return ret;
+  }
   FileDataBase.prototype.drop = function (name, defer) {
     if(this.closingDefer){
       if(defer){
@@ -235,8 +250,13 @@ function createHandler(execlib, util) {
       }
       return;
     }
-    return this.fileQ(name).drop(defer);
+    return this.fileQ(name).drop(defer).then(doDrop);
   };
+  function doMove(newname, mover) {
+    var ret = mover.defer.promise;
+    mover.move(newname);
+    return ret;
+  }
   FileDataBase.prototype.move = function (name, newname, defer) {
     if(this.closingDefer){
       if(defer){
@@ -244,7 +264,7 @@ function createHandler(execlib, util) {
       }
       return;
     }
-    return this.fileQ(name).move(newname, defer);
+    return this.fileQ(name).move(defer).then(doMove.bind(null, newname));
   };
   FileDataBase.prototype.create = function (name, creatoroptions, defer) {
     //creatoroptions: {

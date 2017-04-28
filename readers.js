@@ -10,6 +10,7 @@ function createReaders(execlib,FileOperation,util) {
     FileOperation.call(this, name, path, defer);
   }
   lib.inherit(FileReader,FileOperation);
+  FileReader.prototype.exclusive = false;
 
   FileReader.prototype.read = function (startfrom, quantityorbuffer, defer) {
     var size, buffer;
