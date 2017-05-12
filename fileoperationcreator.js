@@ -101,7 +101,7 @@ function createFileOperation(execlib, util) {
     }
     this.defer.notify(obj);
   };
-  FileOperation.prototype.fail = function(reason){
+  FileOperation.prototype.reject = function(reason){
     if(!this.defer){
       return;
     }
@@ -120,7 +120,7 @@ function createFileOperation(execlib, util) {
   };
   FileOperation.prototype.onOpen = function (err, fh) {
     if(err){
-      this.fail(err);
+      this.reject(err);
     }else{
       this.announceOpen(fh);
     }

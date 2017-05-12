@@ -82,7 +82,7 @@ function createWriters(execlib,FileOperation) {
     if (err) {
       console.error(err, 'when writing', writtenobj, 'on', this);
       defer.reject(err);
-      this.fail(err);
+      this.reject(err);
     } else {
       writtenobj.written += written;
       if (written === buffer.length) {
@@ -95,7 +95,7 @@ function createWriters(execlib,FileOperation) {
   FileWriter.prototype.onStringWritten = function (defer, err, written, string) {
     if (err) {
       defer.reject(err);
-      this.fail(err);
+      this.reject(err);
     } else {
       this.finishWriting(defer, written);
     }
@@ -163,7 +163,7 @@ function createWriters(execlib,FileOperation) {
     this.active = true;
     execlib.execSuite.parserRegistry.spawn(this.modulename, this.prophash).done(
       this.onParser.bind(this),
-      this.fail.bind(this)
+      this.reject.bind(this)
     );
   };
   ParsedFileWriter.prototype.onParser = function (parser) {
@@ -221,7 +221,7 @@ function createWriters(execlib,FileOperation) {
   /*
   TxnCommiter.prototype.onFindResults = function(err, stdout, stderr) {
     if (err) {
-      this.fail(err);
+      this.reject(err);
       return;
     }
     var results = stdout.trim().split("\n");

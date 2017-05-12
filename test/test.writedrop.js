@@ -5,9 +5,12 @@ function chunkWriter (chunk, writer) {
 }
 
 function write(db, filename, text, doappend) {
+  return directorylib.util.writeToFile(db, filename, text, doappend);
+  /*
   return db.write(filename, {append:doappend}).then(
     chunkWriter.bind(null, text)
   );
+  */
 }
 
 describe('WriteDrop test', function () {

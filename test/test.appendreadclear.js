@@ -101,7 +101,7 @@ describe('Append-Read-Clear tests', function () {
   it ('Looong Append-Read-Clear cycle', function () {
     this.timeout(100000);
     dbListener.stopListening();
-    var j = new AppendReadClearJob(DB, 'test1.txt', 1e5), ret = j.defer.promise;
+    var j = new AppendReadClearJob(DB, 'test1.txt', 1e4), ret = j.defer.promise;
     j.go();
     return ret;
   });

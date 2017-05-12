@@ -4,7 +4,9 @@ var fs = require('fs'),
 function createReaders(execlib,FileOperation,util) {
   'use strict';
   var lib = execlib.lib,
-    q = lib.q;
+    q = lib.q,
+    qlib = lib.qlib,
+    JobBase = qlib.JobBase;
 
   function FileReader(name, path, defer) {
     FileOperation.call(this, name, path, defer);
@@ -36,7 +38,7 @@ function createReaders(execlib,FileOperation,util) {
   FileReader.prototype._onBufferRead = function (defer, err, bytesread, buffer) {
     if (err) {
       defer.reject(err);
-      this.fail(err);
+      this.reject(err);
       return;
     }
     if (bytesread !== buffer.length) {
@@ -71,7 +73,7 @@ function createReaders(execlib,FileOperation,util) {
   FileReader.prototype.onSizeForFixedChunks = function (recordsize, processfn, size) {
     //console.log('onSizeForFixedChunks', size, recordsize);
     if ((size - headersize - footersize) % recordsize) {
-      this.fail(new lib.Error('RECORD_SIZE_MISMATCH',this.name+' is of size '+size+' record of size '+recordsize+' cannot fit'));
+      this.reject(new lib.Error('RECORD_SIZE_MISMATCH',this.name+' is of size '+size+' record of size '+recordsize+' cannot fit'));
       return;
     }
     this.openDefer.promise.then(this.readChunk.bind(this, new Buffer(recordsize), processfn));
@@ -141,7 +143,7 @@ function createReaders(execlib,FileOperation,util) {
     this.read(offset, size).then(
       //this.optionallyStep.bind(this),
       this.step.bind(this),
-      this.fail.bind(this),
+      this.reject.bind(this),
       this.onChunk.bind(this)
     );
   };
@@ -178,7 +180,7 @@ function createReaders(execlib,FileOperation,util) {
       }else{
         execlib.execSuite.parserRegistry.spawn(this.options.parsermodulename, this.options.propertyhash).done(
           this.onParser.bind(this),
-          this.fail.bind(this)
+          this.reject.bind(this)
         );
       }
     }
@@ -206,7 +208,7 @@ function createReaders(execlib,FileOperation,util) {
     }else{
       this.readWhole().done(
         this.onWholeReadDone.bind(this, parser),
-        this.fail.bind(this),
+        this.reject.bind(this),
         this.onWholeReadData.bind(this, parser)
       );
     }
@@ -215,7 +217,7 @@ function createReaders(execlib,FileOperation,util) {
     var hrfr = new HRFReader(this, size, parser);
     hrfr.defer.promise.done(
       this.destroy.bind(this),
-      this.fail.bind(this)
+      this.reject.bind(this)
     );
     hrfr.go();
   };
@@ -223,7 +225,7 @@ function createReaders(execlib,FileOperation,util) {
     //console.log(this.name, 'onOpenForRawRead', start, quantity);
     this.read(start, quantity).done(
       this.onRawReadDone.bind(this),
-      this.fail.bind(this),
+      this.reject.bind(this),
       this.notify.bind(this)
     );
   };
@@ -239,7 +241,7 @@ function createReaders(execlib,FileOperation,util) {
     try {
       this.result = parser.fileToData(buff);
     } catch(e) {
-      this.fail(e);
+      this.reject(e);
     }
   };
   ParsedFileReader.prototype.readVariableLengthRecords = function (parser, offsetobj) {
@@ -271,13 +273,13 @@ function createReaders(execlib,FileOperation,util) {
       offsetobj.offset+=bytesread;
       this.readVariableLengthRecords(parser, offsetobj);
     } catch (e) {
-      this.fail(e);
+      this.reject(e);
     }
   };
 
   function HRFReader(filereader, filesize, parser) {
     //console.log('new HRFReader', filesize);
-    lib.AsyncJob.call(this);
+    JobBase.call(this);
     this.reader = filereader;
     this.parser = parser;
     this.filesize = filesize;
@@ -287,7 +289,7 @@ function createReaders(execlib,FileOperation,util) {
     this.recordstoread = ~~((this.filesize - this.headerLength() - this.footerLength()) / this.parser.recordDelimiter);
     //console.log(this.reader.name, 'recordstoread', this.recordstoread);
   }
-  lib.inherit(HRFReader, lib.AsyncJob);
+  lib.inherit(HRFReader, JobBase);
   HRFReader.prototype.destroy = function () {
     if (this.parser) {
       this.parser.destroy();
@@ -299,17 +301,22 @@ function createReaders(execlib,FileOperation,util) {
     this.filesize = null;
     this.parser = null;
     this.reader = null;
-    lib.AsyncJob.prototype.destroy.call(this);
+    JobBase.prototype.destroy.call(this);
+  };
+  HRFReader.prototype.go = function () {
+    var d = this.defer;
+    this.proc();
+    return d;
   };
   HRFReader.prototype.proc = function () {
     if (!this.sizesOK()) {
       console.error(this.reader.name+' is of size '+this.filesize+' record of size '+this.parser.recordDelimiter+' cannot fit');
-      this.fail(new lib.Error('RECORD_SIZE_MISMATCH',this.name+' is of size '+this.size+' record of size '+this.parser.recordDelimiter+' cannot fit'));
+      this.reject(new lib.Error('RECORD_SIZE_MISMATCH',this.name+' is of size '+this.size+' record of size '+this.parser.recordDelimiter+' cannot fit'));
       return;
     }
     this.reader.openDefer.promise.done(
       this.read.bind(this),
-      this.fail.bind(this)
+      this.reject.bind(this)
     );
     this.reader.open();
   }
@@ -383,7 +390,7 @@ function createReaders(execlib,FileOperation,util) {
       }
     } catch (e) {
       //console.log('ERROR in parsing record',record,':',e);
-      this.reader.fail(e);
+      this.reader.reject(e);
     }
   };
   HRFReader.prototype.finalize = function () {
@@ -425,7 +432,7 @@ function createReaders(execlib,FileOperation,util) {
         if (this.options.filecontents.parsermodulename !== '*') {
           execlib.execSuite.parserRegistry.spawn(this.options.filecontents.parsermodulename, this.options.filecontents.propertyhash).done(
             this.onParserInstantiated.bind(this),
-            this.fail.bind(this)
+            this.reject.bind(this)
           );
         }
       }
@@ -460,14 +467,14 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.onType = function(type){
     if (type !== 'd') {
-      this.fail(new lib.Error('WRONG_FILE_TYPE',this.name+' is not a directory'));
+      this.reject(new lib.Error('WRONG_FILE_TYPE',this.name+' is not a directory'));
       return;
     }
     fs.readdir(this.path, this.onListing.bind(this));
   };
   DirReader.prototype.onListing = function (err, list) {
     if (err) {
-      this.fail(err);
+      this.reject(err);
     } else {
       this.result = 0;
       if (list.length) {
@@ -485,7 +492,7 @@ function createReaders(execlib,FileOperation,util) {
       //console.log('processFileName', filename, filelist, 'left');
       this.processFileName(filename).done(
         this.processSuccess.bind(this,filelist,filename),
-        this.fail.bind(this)
+        this.reject.bind(this)
       );
     } else {
       this.destroy();
@@ -632,7 +639,7 @@ function createReaders(execlib,FileOperation,util) {
       d.promise.done(
         //reportobj.defer.resolve.bind(reportobj.defer,true),
         this.onParsedFile.bind(this, reportobj),
-        this.fail.bind(this),
+        this.reject.bind(this),
         this.onParsedRecord.bind(this, reportobj.data || {})
       );
       parser.go();
