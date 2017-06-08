@@ -226,8 +226,13 @@ function createReaders(execlib,FileOperation,util) {
     this.read(start, quantity).done(
       this.onRawReadDone.bind(this),
       this.reject.bind(this),
-      this.notify.bind(this)
+      this.onParsedRecord.bind(this)
     );
+  };
+  ParsedFileReader.prototype.onParsedRecord = function (record) {
+    if (lib.isVal(record)) {
+      this.notify(record);
+    }
   };
   ParsedFileReader.prototype.onWholeReadDone = function (parser, bytesread) {
     parser.destroy();
@@ -269,7 +274,7 @@ function createReaders(execlib,FileOperation,util) {
       records = parser.fileToData(buff);
       //console.log('records', records);
       //console.log(records.length, 'records');
-      records.forEach(this.notify.bind(this));
+      records.forEach(this.onParsedRecord.bind(this));
       offsetobj.offset+=bytesread;
       this.readVariableLengthRecords(parser, offsetobj);
     } catch (e) {
