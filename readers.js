@@ -169,6 +169,7 @@ function createReaders(execlib,FileOperation,util) {
     FileReader.prototype.destroy.call(this);
   };
   ParsedFileReader.prototype.go = function () {
+    var metareader, rd;
     if(this.active){
       return;
     }
@@ -177,6 +178,14 @@ function createReaders(execlib,FileOperation,util) {
       this.onParser(this.options.parserinstance);
     } else {
       if(this.options.parsermodulename === '*'){
+        console.log(this, 'should find parser');
+        rd = q.defer();
+        metareader = readerFactory(Path.join('.meta', this.name), Path.join(Path.dirname(this.path), '.meta', this.name), {parsermodulename: 'allex_jsonparser'}, rd);
+        rd.promise.done(
+          this.onMeta.bind(this),
+          this.reject.bind(this)
+        );
+        metareader.go();
       }else{
         execlib.execSuite.parserRegistry.spawn(this.options.parsermodulename, this.options.propertyhash).done(
           this.onParser.bind(this),
@@ -200,7 +209,7 @@ function createReaders(execlib,FileOperation,util) {
           this.open();
         }
       }
-      if (parser.recordDelimiter instanceof Buffer) {
+      if (Buffer.isBuffer(parser.recordDelimiter)) {
         //console.log('time for readVariableLengthRecords', parser.recordDelimiter);
         this.openDefer.promise.done(this.readVariableLengthRecords.bind(this, parser, {offset:0}));
         this.open();
@@ -280,6 +289,20 @@ function createReaders(execlib,FileOperation,util) {
     } catch (e) {
       this.reject(e);
     }
+  };
+  ParsedFileReader.prototype.onMeta = function (metainfo) {
+    if (!metainfo) {
+      this.reject(new lib.Error('NO_META_INFO', this.path+' has no corresponding .meta information'));
+      return;
+    }
+    if (!metainfo.parserinfo) {
+      this.reject(new lib.Error('NO_META_INFO', this.path+' has no corresponding parserinfo in .meta information'));
+      return;
+    }
+    execlib.execSuite.parserRegistry.spawn(metainfo.parserinfo.modulename, metainfo.parserinfo.propertyhash).done(
+      this.onParser.bind(this),
+      this.reject.bind(this)
+    );
   };
 
   function HRFReader(filereader, filesize, parser) {
@@ -451,7 +474,7 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.go = function () {
     //console.log('going for', this.path, 'with current parserInfo', this.parserInfo, 'and options', this.options);
-    if(this.options.needparsing && this.options.filecontents.parsermodulename !== '*') {
+    if(this.options.needparsing && this.options.filecontents && this.options.filecontents.parsermodulename !== '*') {
       if (!this.parserInfo.instance) {
         this.parserInfo.waiting = true;
         return;
@@ -555,6 +578,7 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.needParsing = function () {
     return this.options && this.options.needparsing && 
+      this.options.filecontents &&
       (
         this.options.filecontents.parsermodulename === '*' ||
         this.options.filecontents.parsers
@@ -656,8 +680,10 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   DirReader.prototype.onParsedFile = function (reportobj) {
-    this.parserInfo.instance.destroy();
-    this.parserInfo.instance = null;
+    if (this.parserInfo && this.parserInfo.instance) {
+      this.parserInfo.instance.destroy();
+      this.parserInfo.instance = null;
+    }
     reportobj.defer.resolve(true);
   };
   DirReader.prototype.onParsedRecord = function (statsobj, parsedrecord) {
