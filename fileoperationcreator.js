@@ -24,11 +24,16 @@ function createFileOperation(execlib, util) {
     this.active = false;
     this.fh = null;
     this.openDefer = q.defer();
+    this.closeDefer = null;
     var destroyer = this.destroy.bind(this);
     defer.promise.then(destroyer, destroyer);
   };
   FileOperation.prototype.destroy = function () {
     this.openDefer = null;
+    if (this.closeDefer) {
+      this.closeDefer.then(this.destroy.bind(this));
+      return;
+    }
     if(this.fh){
       this.close();
       return;
@@ -126,13 +131,24 @@ function createFileOperation(execlib, util) {
     }
   };
   FileOperation.prototype.close = function () {
+    if (this.closeDefer) {
+      return this.closeDefer.promise;
+    }
     if(this.fh){
+      this.closeDefer = q.defer();
       fs.close(this.fh,this.onClosed.bind(this));
+      return this.closeDefer.promise;
     }else{
       this.destroy();
+      return q(true);
     }
   };
   FileOperation.prototype.onClosed = function (e) {
+    var cd = this.closeDefer;
+    this.closeDefer = null;
+    if (!cd) {
+      return;
+    }
     if (e) {
       console.trace();
       console.error(e.stack);
@@ -140,6 +156,7 @@ function createFileOperation(execlib, util) {
       this.error = e;
     }
     this.fh = null;
+    cd.resolve(true);
     this.destroy();
   };
   FileOperation.prototype.metaName = function (name) {

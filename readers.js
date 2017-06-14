@@ -446,7 +446,7 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.go = function () {
     //console.log('going for', this.path, 'with current parserInfo', this.parserInfo, 'and options', this.options);
-    if(this.options.needparsing && this.options.filecontents.parsermodulename !== '*') {
+    if(this.options.needparsing && this.options.filecontents && this.options.filecontents.parsermodulename !== '*') {
       if (!this.parserInfo.instance) {
         this.parserInfo.waiting = true;
         return;
@@ -549,7 +549,9 @@ function createReaders(execlib,FileOperation,util) {
     return d.promise;
   };
   DirReader.prototype.needParsing = function () {
-    return this.options && this.options.needparsing && 
+    return this.options &&
+      this.options.needparsing && 
+      this.options.filecontents && 
       (
         this.options.filecontents.parsermodulename === '*' ||
         this.options.filecontents.parsers
@@ -600,6 +602,7 @@ function createReaders(execlib,FileOperation,util) {
       this.options.metainfo = metainfo;
     }
     if (this.needParsing()) {
+      console.log('aha, needParsing');
       if (!meta.parserinfo) {
         defer.resolve(false);
         return;
@@ -651,8 +654,10 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   DirReader.prototype.onParsedFile = function (reportobj) {
-    this.parserInfo.instance.destroy();
-    this.parserInfo.instance = null;
+    if (this.parserInfo && this.parserInfo.instance) {
+      this.parserInfo.instance.destroy();
+      this.parserInfo.instance = null;
+    }
     reportobj.defer.resolve(true);
   };
   DirReader.prototype.onParsedRecord = function (statsobj, parsedrecord) {
