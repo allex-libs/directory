@@ -8,6 +8,10 @@ function createReaders(execlib,FileOperation,util) {
     qlib = lib.qlib,
     JobBase = qlib.JobBase;
 
+  function parserRegistry () {
+    return execlib.execSuite.additionalRegistries.get('parsers');
+  }
+
   function FileReader(name, path, defer) {
     FileOperation.call(this, name, path, defer);
   }
@@ -187,7 +191,7 @@ function createReaders(execlib,FileOperation,util) {
         );
         metareader.go();
       }else{
-        execlib.execSuite.parserRegistry.spawn(this.options.parsermodulename, this.options.propertyhash).done(
+        parserRegistry().spawn(this.options.parsermodulename, this.options.propertyhash).done(
           this.onParser.bind(this),
           this.reject.bind(this)
         );
@@ -299,7 +303,7 @@ function createReaders(execlib,FileOperation,util) {
       this.reject(new lib.Error('NO_META_INFO', this.path+' has no corresponding parserinfo in .meta information'));
       return;
     }
-    execlib.execSuite.parserRegistry.spawn(metainfo.parserinfo.modulename, metainfo.parserinfo.propertyhash).done(
+    parserRegistry().spawn(metainfo.parserinfo.modulename, metainfo.parserinfo.propertyhash).done(
       this.onParser.bind(this),
       this.reject.bind(this)
     );
@@ -458,7 +462,7 @@ function createReaders(execlib,FileOperation,util) {
     if (this.options.filecontents) {
       if (this.options.filecontents.parsermodulename) {
         if (this.options.filecontents.parsermodulename !== '*') {
-          execlib.execSuite.parserRegistry.spawn(this.options.filecontents.parsermodulename, this.options.filecontents.propertyhash).done(
+          parserRegistry().spawn(this.options.filecontents.parsermodulename, this.options.filecontents.propertyhash).done(
             this.onParserInstantiated.bind(this),
             this.reject.bind(this)
           );
@@ -635,7 +639,7 @@ function createReaders(execlib,FileOperation,util) {
         return;
       }
       //console.log(filename, 'meta.parserinfo', meta.parserinfo, 'this.options.filecontents', this.options.filecontents);
-      execlib.execSuite.parserRegistry.spawn(meta.parserinfo.modulename, meta.parserinfo.propertyhash).done(
+      parserRegistry().spawn(meta.parserinfo.modulename, meta.parserinfo.propertyhash).done(
         this.onMetaParser.bind(this, defer, filename),
         defer.resolve.bind(defer,false)
       );

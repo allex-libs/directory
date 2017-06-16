@@ -3,11 +3,11 @@ function parserRegistryIntroducer(execlib){
   var lib = execlib.lib,
     q = lib.q,
     execSuite = execlib.execSuite,
-    parserRegistry = execSuite.parserRegistry;
+    parserRegistry = execSuite.additionalRegistries.get('parsers');
   if(parserRegistry){
     return;
   }
-  execSuite.parserRegistry = new execSuite.RegistryBase();
+  execSuite.additionalRegistries.add('parsers', new execSuite.RegistryBase());
 }
 
 module.exports = parserRegistryIntroducer;
