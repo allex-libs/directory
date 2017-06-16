@@ -630,7 +630,6 @@ function createReaders(execlib,FileOperation,util) {
       this.options.metainfo = metainfo;
     }
     if (this.needParsing()) {
-      console.log('aha, needParsing');
       if (!meta.parserinfo) {
         defer.resolve(false);
         return;
