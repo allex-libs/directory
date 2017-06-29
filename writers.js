@@ -5,6 +5,7 @@ function createWriters(execlib,FileOperation) {
   'use strict';
   var lib = execlib.lib,
     q = lib.q,
+    parserRegistry = execlib.execSuite.additionalRegistries.get('parsers'),
     _fwid = 0;
 
   function FileWriter(name, path, defer, append){
@@ -161,7 +162,7 @@ function createWriters(execlib,FileOperation) {
       return;
     }
     this.active = true;
-    execlib.execSuite.parserRegistry.spawn(this.modulename, this.prophash).done(
+    parserRegistry.spawn(this.modulename, this.prophash).done(
       this.onParser.bind(this),
       this.reject.bind(this)
     );
