@@ -210,11 +210,19 @@ function createHandler(execlib, util) {
     return new FileDataBaseTxn(txnid, txnpath,this);
   };
   FileDataBase.prototype.read = function (name, options, defer) {
+    var err;
+    if (!lib.isString(name)) {
+      err = new lib.Error('INVALID_FILE_NAME', 'Filename for reading must be a string');
+      if (defer) {
+        defer.reject(err);
+      }
+      return q.reject(err);
+    }
     if(this.closingDefer){
       if(defer){
         defer.resolve(false);
       }
-      return;
+      return q(false);
     }
     return this.fileQ(name).read(options, defer);
   };
