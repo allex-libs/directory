@@ -210,6 +210,7 @@ function createWriters(execlib,FileOperation) {
     this.affectedfilepaths = null;
   }
   lib.inherit(TxnCommiter, FileOperation);
+  TxnCommiter.prototype.exclusive = true;
   TxnCommiter.prototype.destroy = function () {
     this.affectedfilepaths = null;
     this.txndirname = null;
