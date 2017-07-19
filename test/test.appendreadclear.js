@@ -73,7 +73,7 @@ function runAppendReadClearJobs (db, filename, appendcount, times, defer) {
 }
 
 describe('Append-Read-Clear tests', function () {
-  loadClientSide(['allex:directory:lib']);
+  loadClientSide(['allex_directorylib']);
   it ('Create a directory database', function () {
     return setGlobal('DB', new directorylib.DataBase('test.dir'));
   });

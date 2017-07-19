@@ -1,6 +1,6 @@
 {
   "name": "allex_directorylib",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AllexJS lib for treating a directory as a database",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@gitlab.hers.rs:allex_libs/directory"
+    "url": "git@github.com:allex-libs/directory.git"
   },
   "keywords": [
     "AllexJS",
