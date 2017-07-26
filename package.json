@@ -1,6 +1,6 @@
 {
   "name": "allex_directorylib",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AllexJS lib for treating a directory as a database",
   "main": "index.js",
   "scripts": {

@@ -309,39 +309,6 @@ function createHandler(execlib, util) {
   FileDataBase.prototype.fileQ = function (name) {
     return new FileQ(this, name, util.pathForFilename(this.rootpath,name));
   };
-  FileDataBase.prototype.commit = lib.dummyFunc;
-
-  function FileDataBaseTxn(id, path, db) {
-    this.id = id;
-    this.path = path;
-    this.parentDB = db;
-    FileDataBase.call(this, this.parentDB.rootpath+'_'+id);
-    this.parentDB.add('txn:'+this.id);
-  }
-  lib.inherit(FileDataBaseTxn, FileDataBase);
-  FileDataBaseTxn.prototype.commit = FileDataBase.prototype.close; //just terminology
-  FileDataBaseTxn.prototype.destroy = function () {
-    //console.log('FileDataBaseTxn destroying', this);
-    FileDataBase.prototype.destroy.call(this);
-    if (this.rootpath === null) {
-      this.postMortem();
-    }
-  };
-  FileDataBase.prototype.postMortem = function () {
-    var d = q.defer();
-    this.parentDB.write(this.path, {txndirname: this.parentDB.rootpath+'_'+this.id}, d);
-    d.promise.done(
-      this.onTxnDirDone.bind(this)
-    );
-  };
-  FileDataBase.prototype.onTxnDirDone = function () {
-    this.parentDB.remove('txn:'+this.id);
-    if (this.parentDB.closingDefer) {
-      this.parentDB.destroy();
-    }
-    this.id = null;
-    this.parentDB = null;
-  };
   FileDataBase.prototype.metaPath = function (filepath) {
     return Path.join(Path.dirname(filepath),'.meta',Path.basename(filepath));
   };
@@ -363,6 +330,69 @@ function createHandler(execlib, util) {
   };
   FileDataBase.prototype.writeFileMeta = function (filename, metadata, defer) {
     return this.writeToFileName(this.metaPath(filename), {modulename: 'allex_jsonparser'}, metadata);
+  };
+  FileDataBase.prototype.commit = lib.dummyFunc;
+
+  function FileDataBaseTxn(id, path, db) {
+    this.id = id;
+    this.path = path;
+    this.parentDB = db;
+    this.filesWritten = [];
+    FileDataBase.call(this, this.parentDB.rootpath+'_'+id);
+    this.parentDB.add('txn:'+this.id);
+  }
+  lib.inherit(FileDataBaseTxn, FileDataBase);
+  FileDataBaseTxn.prototype.commit = function (defer) {
+    this.doCommit().then(
+      this.close.bind(this, defer)
+    )
+  };
+  FileDataBaseTxn.prototype.write = function (name, options, defer) {
+    if (!lib.isArray(this.filesWritten)) {
+      return q.reject(new lib.Error('ALREADY_DEAD', 'This instance of FileDataBaseTxn is already dead'));
+    }
+    if (this.filesWritten.indexOf(name) < 0) {
+      this.filesWritten.push(name);
+    }
+    return FileDataBase.prototype.write.call(this, name, options, defer);
+  };
+  FileDataBaseTxn.prototype.doCommit = function () {
+    var d = q.defer();
+    this.parentDB.write(this.path, {txndirname: this.parentDB.rootpath+'_'+this.id}, d);
+    return d.promise.then(
+      this.onTxnDirDone.bind(this)
+    );
+  };
+  FileDataBaseTxn.prototype.onTxnDirDone = function () {
+    return q.all(this.filesWritten.map(this.fileWrittenTriggerer.bind(this))).then(
+      this.finishCommit.bind(this)
+    );
+  };
+  FileDataBaseTxn.prototype.finishCommit = function () {
+    this.parentDB.remove('txn:'+this.id);
+    if (this.parentDB.closingDefer) {
+      this.parentDB.destroy();
+    }
+    this.id = null;
+    this.parentDB = null;
+    this.filesWritten = null;
+    return q(true);
+  };
+  FileDataBaseTxn.prototype.fileWrittenTriggerer = function (filename) {
+    if (!this.parentDB) {
+      return q.reject(new lib.Error('ALREADY_DEAD', 'This instance of FileDataBaseTxn is already dead'));
+    }
+    var d = q.defer();
+    util.FStats(Path.join(this.parentDB.rootpath, filename), d);
+    return d.promise.then(this.fireParentDataBaseChanged.bind(this, filename));
+  };
+  FileDataBaseTxn.prototype.fireParentDataBaseChanged = function (filename, fstats) {
+    console.log('fireParentDataBaseChanged', filename, fstats);
+    if (this.parentDB && this.parentDB.changed) {
+      console.log('yes!');
+      this.parentDB.changed.fire(filename, null, fstats);
+    }
+    return q(true);
   };
 
   return FileDataBase;
