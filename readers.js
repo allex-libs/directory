@@ -499,6 +499,12 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.onType = function(type){
     if (type !== 'd') {
+      if (!type && this.options.acceptnonexisting) {
+        console.log(this.options);
+        this.result = 0;
+        this.destroy();
+        return;
+      }
       this.reject(new lib.Error('WRONG_FILE_TYPE',this.name+' is not a directory'));
       return;
     }
