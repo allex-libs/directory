@@ -655,6 +655,9 @@ function createReaders(execlib,FileOperation,util) {
     }
   };
   DirReader.prototype.onMetaParser = function (defer, filename, parser) {
+    if (!this.parserInfo) {
+      return;
+    }
     this.parserInfo.instance = parser;
     this.checkFStats(defer, filename);
   };
