@@ -459,7 +459,7 @@ function createReaders(execlib,FileOperation,util) {
       waiting: false,
       instance: null
     };
-    if (this.options.filecontents) {
+    if (this.options && this.options.filecontents) {
       if (this.options.filecontents.parsermodulename) {
         if (this.options.filecontents.parsermodulename !== '*') {
           parserRegistry().spawn(this.options.filecontents.parsermodulename, this.options.filecontents.propertyhash).done(
@@ -472,6 +472,7 @@ function createReaders(execlib,FileOperation,util) {
   }
   lib.inherit(DirReader, FileReader);
   DirReader.prototype.destroy = function () {
+    this.parserInfo = null;
     this.options = null;
     this.filecount = null;
     FileReader.prototype.destroy.call(this);
@@ -699,6 +700,9 @@ function createReaders(execlib,FileOperation,util) {
   };
   DirReader.prototype.onParsedRecord = function (statsobj, parsedrecord) {
     //console.log('notifying', parsedrecord);
+    if (!this.parserInfo) {
+      return;
+    }
     lib.traverse(statsobj,function(statsitem, statsname){
       parsedrecord[statsname] = statsitem;
     });
