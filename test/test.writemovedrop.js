@@ -21,19 +21,19 @@ describe('WriteDrop test', function () {
   it('Just write', function () {
     return write(DB, 'test.text', 'test text', false);
   });
+  it('Try move', function () {
+    return DB.move('test.text', 'newtest.text');
+  });
   it('Try drop', function () {
-    return DB.drop('test.text');
-  });
-  it('Write to subdir', function () {
-    return write(DB, 'subdir/test.text', 'test text', false);
-  });
-  it('Try drop from subdir', function () {
-    return DB.drop('subdir/test.text');
+    return DB.drop('newtest.text');
   });
   it('Write to subdir platform-independent', function () {
-    return write(DB, 'subdir/test.text', 'test text', false);
+    return write(DB, ['subdir', 'test.text'], 'test text', false);
   });
-  it('Try drop from subdir platform-independent', function () {
-    return DB.drop('subdir/test.text');
+  it('Try move', function () {
+    return DB.move(['subdir', 'test.text'], ['subdir', 'newtest.text']);
+  });
+  it('Try drop', function () {
+    return DB.drop(['subdir', 'newtest.text']);
   });
 });

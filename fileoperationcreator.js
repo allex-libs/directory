@@ -1,9 +1,9 @@
-var fs = require('fs'),
-  Path = require('path');
-function createFileOperation(execlib, util) {
+function createFileOperation(execlib, util, Node) {
   'use strict';
   var lib = execlib.lib,
-    q = lib.q;
+    q = lib.q,
+    fs = Node.Fs,
+    Path = Node.Path;
 
   //TODO: it's still unclear if 
   //this.openDefer should be rejected in case

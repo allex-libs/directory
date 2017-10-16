@@ -1,14 +1,13 @@
-var Path = require('path');
-
-function createHandler(execlib, util) {
+function createHandler(execlib, util, Node) {
   'use strict';
   var lib = execlib.lib,
     q = lib.q,
-    FileOperation = require('./fileoperationcreator')(execlib,util),
-    readerFactory = require('./readers')(execlib,FileOperation,util),
-    writerFactory = require('./writers')(execlib,FileOperation),
-    Dropper = require('./droppercreator')(execlib,FileOperation),
-    Mover = require('./movercreator')(execlib,FileOperation),
+    Path = Node.Path,
+    FileOperation = require('./fileoperationcreator')(execlib,util,Node),
+    readerFactory = require('./readers')(execlib,FileOperation,util,Node),
+    writerFactory = require('./writers')(execlib,FileOperation,Node),
+    Dropper = require('./droppercreator')(execlib,FileOperation,Node),
+    Mover = require('./movercreator')(execlib,FileOperation,Node),
     _fqid=0;
 
   function FileQ(database, name, path) {
@@ -211,6 +210,7 @@ function createHandler(execlib, util) {
   };
   FileDataBase.prototype.read = function (name, options, defer) {
     var err;
+    name = util.surePath(name);
     if (!lib.isString(name)) {
       err = new lib.Error('INVALID_FILE_NAME', 'Filename for reading must be a string');
       if (defer) {
@@ -233,6 +233,7 @@ function createHandler(execlib, util) {
       }
       return;
     }
+    name = util.surePath(name);
     options = options || {};
     options.stepping = true;
     return this.fileQ(name).stepread(options, defer);
@@ -244,6 +245,7 @@ function createHandler(execlib, util) {
       }
       return;
     }
+    name = util.surePath(name);
     return this.fileQ(name).write(options,defer);
   };
   function doDrop (dropper) {
@@ -258,6 +260,7 @@ function createHandler(execlib, util) {
       }
       return;
     }
+    name = util.surePath(name);
     return this.fileQ(name).drop(defer).then(doDrop);
   };
   function doMove(newname, mover) {
@@ -272,7 +275,8 @@ function createHandler(execlib, util) {
       }
       return;
     }
-    return this.fileQ(name).move(defer).then(doMove.bind(null, newname));
+    name = util.surePath(name);
+    return this.fileQ(name).move(defer).then(doMove.bind(null, Path.join(this.rootpath, util.surePath(newname))));
   };
   FileDataBase.prototype.create = function (name, creatoroptions, defer) {
     //creatoroptions: {
@@ -293,6 +297,7 @@ function createHandler(execlib, util) {
       defer.reject(new lib.Error('NO_PROPERTYHASH_IN_CREATOR_OPTIONS', 'creatoroptions miss the propertyhash property'));
       return;
     }
+    name = util.surePath(name);
     execlib.execSuite.dataGeneratorRegistry.spawn(creatoroptions.modulename, creatoroptions.propertyhash).done(
       this.onDataGenerator.bind(this, name, defer),
       defer.reject.bind(defer)
@@ -387,9 +392,9 @@ function createHandler(execlib, util) {
     return d.promise.then(this.fireParentDataBaseChanged.bind(this, filename));
   };
   FileDataBaseTxn.prototype.fireParentDataBaseChanged = function (filename, fstats) {
-    console.log('fireParentDataBaseChanged', filename, fstats);
+    //console.log('fireParentDataBaseChanged', filename, fstats);
     if (this.parentDB && this.parentDB.changed) {
-      console.log('yes!');
+      //console.log('yes!');
       this.parentDB.changed.fire(filename, null, fstats);
     }
     return q(true);

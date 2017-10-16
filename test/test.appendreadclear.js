@@ -34,7 +34,7 @@ AppendReadClearJob.prototype.produceAppendPromises = function () {
   return ret;
 };
 AppendReadClearJob.prototype.lineWriter = function (line) {
-  return directorylib.util.writeToFile(this.db, this.fileName, line, true);
+  return allex_directorylib.util.writeToFile(this.db, this.fileName, line, true);
 };
 AppendReadClearJob.prototype.checkAgainstExpected = function (read) {
   if (read !== this.expected) {
@@ -75,7 +75,7 @@ function runAppendReadClearJobs (db, filename, appendcount, times, defer) {
 describe('Append-Read-Clear tests', function () {
   loadClientSide(['allex_directorylib']);
   it ('Create a directory database', function () {
-    return setGlobal('DB', new directorylib.DataBase('test.dir'));
+    return setGlobal('DB', new allex_directorylib.DataBase('test.dir'));
   });
   it ('Append DB changed listener', function () {
     //DB.changed.attach(console.log.bind(console, 'db change'));

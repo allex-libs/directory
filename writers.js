@@ -1,11 +1,10 @@
-var fs = require('fs'),
-  child_process = require('child_process'),
-  Path = require('path');
-function createWriters(execlib,FileOperation) {
+function createWriters(execlib,FileOperation,Node) {
   'use strict';
   var lib = execlib.lib,
     q = lib.q,
     parserRegistry = execlib.execSuite.additionalRegistries.get('parsers'),
+    fs = Node.Fs,
+    Path = Node.Path,
     _fwid = 0;
 
   function FileWriter(name, path, defer, append){
@@ -217,7 +216,12 @@ function createWriters(execlib,FileOperation) {
     FileOperation.prototype.destroy.call(this);
   };
   TxnCommiter.prototype.go = function () {
-    child_process.exec('mkdir -p '+Path.dirname(this.path), this.onMkDir.bind(this));
+    var onMkDir = this.onMkDir.bind(this), ensuredir = Path.dirname(this.path);
+    if (ensuredir === '.') {
+      ensuredir = this.path;
+    }
+    fs.ensureDir(ensuredir).then(onMkDir, onMkDir);
+    //child_process.exec('mkdir -p '+Path.dirname(this.path), this.onMkDir.bind(this));
     //child_process.exec('find '+this.txndirname+' -type f', this.onFindResults.bind(this));
   };
   /*
@@ -233,15 +237,19 @@ function createWriters(execlib,FileOperation) {
     child_process.exec('cp -rp '+Path.join(this.txndirname, this.name)+' '+this.path, this.onCpRp.bind(this));
   };
   */
-  TxnCommiter.prototype.onMkDir = function (err, stdio, stderr) {
+  TxnCommiter.prototype.onMkDir = function (/*err, stdio, stderr*/) {
+    var onCpRp = this.onCpRp.bind(this);
     if (this.name === '.') {
-      child_process.exec('cp -rp '+this.txndirname+'/* '+this.path, this.onCpRp.bind(this));
+      //child_process.exec('cp -rp '+this.txndirname+'/* '+this.path, this.onCpRp.bind(this));
+      Node.executeCommand('cp -rp '+this.txndirname+'/* '+this.path).then(onCpRp, onCpRp);
     } else {
-      child_process.exec('cp -rp '+Path.join(this.txndirname, this.name)+' '+Path.dirname(this.path), this.onCpRp.bind(this));
+      //child_process.exec('cp -rp '+Path.join(this.txndirname, this.name)+' '+Path.dirname(this.path), this.onCpRp.bind(this));
+      Node.executeCommand('cp -rp '+Path.join(this.txndirname, this.name)+' '+Path.dirname(this.path)).then(onCpRp, onCpRp);
     }
   };
   TxnCommiter.prototype.onCpRp = function () {
-    child_process.exec('rm -rf '+this.txndirname, this.onRmRf.bind(this));
+    Node.Fs.removeWithCb(this.txndirname, this.onRmRf.bind(this));
+    //child_process.exec('rm -rf '+this.txndirname, this.onRmRf.bind(this));
   };
   TxnCommiter.prototype.onRmRf = function () {
     //console.log('onRmRf');

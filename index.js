@@ -1,12 +1,13 @@
 function createFileApi(execlib){
   'use strict';
   try {
-  var util = require('./util')(execlib);
+  var Node = require('allex_nodehelpersserverruntimelib')(execlib.lib),
+    util = require('./util')(execlib, Node);
   require('./parserregistryintroducer')(execlib);
   require('./datageneratorregistryintroducer')(execlib);
 
   return {
-    DataBase: require('./dbcreator')(execlib, util),
+    DataBase: require('./dbcreator')(execlib, util, Node),
     util: util
   };
   } catch (e) {

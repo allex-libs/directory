@@ -1,6 +1,6 @@
 {
   "name": "allex_directorylib",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AllexJS lib for treating a directory as a database",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "fs"
   ],
   "dependencies": {
-    "mkdirp": "0.5.x"
+    "allex_nodehelpersserverruntimelib": "1.x"
   },
   "author": "HERS Belgrade",
   "license": "ISC"

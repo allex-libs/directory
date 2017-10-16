@@ -1,8 +1,8 @@
-var fs = require('fs');
-function createDropper (execlib, FileOperation) {
+function createDropper (execlib, FileOperation, Node) {
   'use strict';
 
-  var lib = execlib.lib;
+  var lib = execlib.lib,
+    fs = Node.Fs;
 
   function FileDropper (name, path, defer) {
     FileOperation.call(this, name, path, defer);

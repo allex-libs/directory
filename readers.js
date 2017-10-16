@@ -1,12 +1,11 @@
-var fs = require('fs'),
-  Path = require('path');
-
-function createReaders(execlib,FileOperation,util) {
+function createReaders(execlib,FileOperation,util,Node) {
   'use strict';
   var lib = execlib.lib,
     q = lib.q,
     qlib = lib.qlib,
-    JobBase = qlib.JobBase;
+    JobBase = qlib.JobBase,
+    fs = Node.Fs,
+    Path = Node.Path;
 
   function parserRegistry () {
     return execlib.execSuite.additionalRegistries.get('parsers');

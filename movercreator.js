@@ -1,8 +1,8 @@
-var fs = require('fs');
-function createMover (execlib, FileOperation) {
+function createMover (execlib, FileOperation, Node) {
   'use strict';
 
-  var lib = execlib.lib;
+  var lib = execlib.lib,
+    fs = Node.Fs;
 
   function FileMover (name, path, defer) {
     FileOperation.call(this, name, path, defer);
@@ -18,7 +18,7 @@ function createMover (execlib, FileOperation) {
     if(this.fh){
       fs.close(this.fh,this.onClosedForMove.bind(this, newname));
     }else{
-      this.onClosedForMove();
+      this.onClosedForMove(newname);
     }
   };
   FileMover.prototype.onClosedForMove = function (newname, err) {

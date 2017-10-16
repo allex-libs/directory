@@ -1,10 +1,8 @@
-var fs = require('fs'),
-    Path = require('path'),
-    mkdirp = require('mkdirp');
-
-function createUtil(execlib){
+function createUtil(execlib, Node){
   'use strict';
-  var lib = execlib.lib,
+  var fs = Node.Fs,
+    Path = Node.Path,
+    lib = execlib.lib,
     q = lib.q;
 
   function surePath(path) {
@@ -18,7 +16,7 @@ function createUtil(execlib){
     var p;
     path = surePath(path);
     p = Path.isAbsolute(path) ? path : Path.join(process.cwd(),path);
-    mkdirp.sync(path);
+    fs.ensureDirSync(path);
   }
   function pathForFilename(path,filename){
     var ret = Path.join(surePath(path),filename);
@@ -139,6 +137,7 @@ function createUtil(execlib){
   }
 
   return {
+    surePath: surePath,
     satisfyPath: satisfyPath,
     pathForFilename: pathForFilename,
     fileSize: fileSize,
