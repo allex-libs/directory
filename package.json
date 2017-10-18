@@ -17,8 +17,9 @@
     "fs"
   ],
   "dependencies": {
+    "allex_fsutilsserverruntimelib": "1.x",
     "allex_nodehelpersserverruntimelib": "1.x"
   },
-  "author": "HERS Belgrade",
+  "author": "Andrija Petrovic <andrija.hers@gmail.com>",
   "license": "ISC"
 }

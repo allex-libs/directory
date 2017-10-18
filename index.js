@@ -2,7 +2,7 @@ function createFileApi(execlib){
   'use strict';
   try {
   var Node = require('allex_nodehelpersserverruntimelib')(execlib.lib),
-    util = require('./util')(execlib, Node);
+    util = require('./util')(execlib);
   require('./parserregistryintroducer')(execlib);
   require('./datageneratorregistryintroducer')(execlib);
 
