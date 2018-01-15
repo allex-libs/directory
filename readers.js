@@ -274,7 +274,11 @@ function createReaders(execlib,FileOperation,util,Node) {
     if (!bytesread) {
       fr = parser.finalize();
       if (fr) {
-        this.notify(fr);
+        if (lib.isArray(fr)) {
+          fr.forEach(this.notify.bind(this));
+        } else {
+          this.notify(fr);
+        }
       }
       parser.destroy();
       this.result = offsetobj.offset;
@@ -431,9 +435,16 @@ function createReaders(execlib,FileOperation,util,Node) {
     }
     rec = this.parser.finalize();
     if (lib.defined(rec)) {
-      this.reader.result++;
-      this.reader.notify(rec);
+      if (lib.isArray(rec)) {
+        rec.forEach(this.onRec.bind(this));
+      } else {
+        this.onRec(rec);
+      }
     }
+  };
+  HRFReader.prototype.onRec = function (rec) {
+    this.reader.result++;
+    this.reader.notify(rec);
   };
 
   /*
