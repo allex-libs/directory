@@ -159,6 +159,9 @@ function createHandler(execlib, util, Node) {
     );
   };
   FileQ.prototype.onFStatsForFireDataBaseChanged = function (originalfs, newfstats) {
+    if (!(this.database && this.database.changed)) {
+      return;
+    }
     this.database.changed.fire(this.name, originalfs, newfstats);
   };
   FileQ.prototype.handleQ = function () {
@@ -317,8 +320,8 @@ function createHandler(execlib, util, Node) {
   FileDataBase.prototype.metaPath = function (filepath) {
     return Path.join(Path.dirname(filepath),'.meta',Path.basename(filepath));
   };
-  function allWriter(data, writer) {
-    writer.writeAll(data);
+  function allWriter(data, defer, writer) {
+    lib.qlib.promise2defer(writer.writeAll(data), defer);
   }
   FileDataBase.prototype.writeToFileName = function (filename, parserinfo, data, defer) {
     defer = defer || q.defer();
@@ -330,11 +333,14 @@ function createHandler(execlib, util, Node) {
       return;
       */
     }
-    this.write(filename, parserinfo, defer).then(allWriter.bind(null, data));
+    this.write(filename, parserinfo).then(allWriter.bind(null, data, defer));
     return defer.promise;
   };
-  FileDataBase.prototype.writeFileMeta = function (filename, metadata, defer) {
+  FileDataBase.prototype.writeFileMeta = function (filename, metadata) {
     return this.writeToFileName(this.metaPath(filename), {modulename: 'allex_jsonparser'}, metadata);
+  };
+  FileDataBase.prototype.updateFileMeta = function (filename, metadata, options) {
+    return util.updateFileMeta(this, filename, metadata, options);
   };
   FileDataBase.prototype.commit = lib.dummyFunc;
 

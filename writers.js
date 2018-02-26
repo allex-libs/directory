@@ -113,12 +113,13 @@ function createWriters(execlib,FileOperation,Node) {
     this.q.pop(popone.bind(null, this));
   };
   FileWriter.prototype.writeAll = function (data) {
-    this.write(data).then(this.onAllWritten.bind(this, data));
+    return this.write(data).then(this.onAllWritten.bind(this, data));
   };
   FileWriter.prototype.onAllWritten = function (object) {
     //console.log('FileWriter', this._id, 'onAllWritten', object);
     this.result = object;
     this.close();
+    return q(true);
   };
 
   function RawFileWriter(name, path, defer, append){
