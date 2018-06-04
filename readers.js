@@ -25,7 +25,7 @@ function createReaders(execlib,FileOperation,util,Node) {
     }
     if ('number' === typeof quantityorbuffer) {
       size = quantityorbuffer;
-      buffer = new Buffer(size);
+      buffer = Buffer.allocUnsafe(size);
     }
     if(!buffer){
       return this.readWhole(startfrom, defer);
@@ -79,7 +79,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       this.reject(new lib.Error('RECORD_SIZE_MISMATCH',this.name+' is of size '+size+' record of size '+recordsize+' cannot fit'));
       return;
     }
-    this.openDefer.promise.then(this.readChunk.bind(this, new Buffer(recordsize), processfn));
+    this.openDefer.promise.then(this.readChunk.bind(this, Buffer.allocUnsafe(recordsize), processfn));
     this.open();
   };
   FileReader.prototype.readChunk = function (buffer, processfn) {
@@ -198,6 +198,25 @@ function createReaders(execlib,FileOperation,util,Node) {
     }
   };
   ParsedFileReader.prototype.onParser = function (parser) {
+    if(lib.isFunction(parser.tryRecognizeNoDataFile)) {
+      console.log('will try to recognize no data file', this.path);
+      parser.tryRecognizeNoDataFile(this.path).then(
+        this.onFileRecognizedAsNoDataFile.bind(this, parser),
+        this.handleParser.bind(this, parser)
+      );
+      return;
+    }
+    this.handleParser(parser);
+  };
+  ParsedFileReader.prototype.onFileRecognizedAsNoDataFile = function (parser, isanodata) {
+    if (isanodata) {
+      parser.destroy();
+      this.close();
+      return;
+    }
+    this.handleParser(parser);
+  };
+  ParsedFileReader.prototype.handleParser = function (parser) {
     if(lib.defined(parser.recordDelimiter)){
       var delim = parser.recordDelimiter, tord = typeof delim, start, quantity;
       if ('number' === tord) {
@@ -229,7 +248,7 @@ function createReaders(execlib,FileOperation,util,Node) {
     var hrfr = new HRFReader(this, size, parser);
     hrfr.defer.promise.done(
       this.destroy.bind(this),
-      this.reject.bind(this)
+      this.onParserRejected.bind(this)
     );
     hrfr.go();
   };
@@ -237,9 +256,17 @@ function createReaders(execlib,FileOperation,util,Node) {
     //console.log(this.name, 'onOpenForRawRead', start, quantity);
     this.read(start, quantity).done(
       this.onRawReadDone.bind(this),
-      this.reject.bind(this),
+      this.onParserRejected.bind(this),
       this.onParsedRecord.bind(this)
     );
+  };
+  ParsedFileReader.prototype.onParserRejected = function (reason) {
+    if (reason && reason.code==='NO_DATA_FILE') {
+      this.result = 0;
+      this.close();
+      return;
+    }
+    this.reject(reason);
   };
   ParsedFileReader.prototype.onParsedRecord = function (record) {
     if (lib.isVal(record)) {
@@ -262,7 +289,7 @@ function createReaders(execlib,FileOperation,util,Node) {
     }
   };
   ParsedFileReader.prototype.readVariableLengthRecords = function (parser, offsetobj) {
-    var buff = new Buffer(1050);
+    var buff = Buffer.allocUnsafe(1050);
     //console.log('reading with offset', offsetobj.offset);
     this.read(offsetobj.offset, buff).done(
       this.onBufferReadForVariableLengthRecord.bind(this, parser, buff, offsetobj)
@@ -294,7 +321,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       offsetobj.offset+=bytesread;
       this.readVariableLengthRecords(parser, offsetobj);
     } catch (e) {
-      this.reject(e);
+      this.onParserRejected(e);
     }
   };
   ParsedFileReader.prototype.onMeta = function (metainfo) {
@@ -318,9 +345,9 @@ function createReaders(execlib,FileOperation,util,Node) {
     this.reader = filereader;
     this.parser = parser;
     this.filesize = filesize;
-    this.header = parser.headerLength ? new Buffer(parser.headerLength) : null;
-    this.record = parser.recordDelimiter ? new Buffer(parser.recordDelimiter) : null;
-    this.footer = parser.footerLength ? new Buffer(parser.footerLength) : null;
+    this.header = parser.headerLength ? Buffer.allocUnsafe(parser.headerLength) : null;
+    this.record = parser.recordDelimiter ? Buffer.allocUnsafe(parser.recordDelimiter) : null;
+    this.footer = parser.footerLength ? Buffer.allocUnsafe(parser.footerLength) : null;
     this.recordstoread = ~~((this.filesize - this.headerLength() - this.footerLength()) / this.parser.recordDelimiter);
     //console.log(this.reader.name, 'recordstoread', this.recordstoread);
   }
@@ -390,7 +417,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       if (lib.isFunction(this.parser.onHeader)) {
         this.parser.onHeader(buffer);
       }
-      //set this.record to new Buffer(this.parser.recordDelimiter)
+      //set this.record to Buffer.allocUnsafe(this.parser.recordDelimiter)
     } else if (buffer === this.record) {
       this.recordstoread --;
       if (this.recordstoread < 1) {
@@ -425,7 +452,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       }
     } catch (e) {
       //console.log('ERROR in parsing record',record,':',e);
-      this.reader.reject(e);
+      this.reader.onParserRejected(e);
     }
   };
   HRFReader.prototype.finalize = function () {
