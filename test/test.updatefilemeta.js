@@ -8,7 +8,7 @@ function expectAllFieldsToExist(defer,metaObj){
   defer.resolve(true);
 }
 
-describe('WriteDrop test', function () {
+describe('UpdateFileMeta test', function () {
   loadClientSide(['allex_directorylib']);
   it ('Create a directory database', function () {
     return setGlobal('DB', new allex_directorylib.DataBase('test.dir'));

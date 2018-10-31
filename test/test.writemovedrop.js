@@ -13,7 +13,7 @@ function write(db, filename, text, doappend) {
   */
 }
 
-describe('WriteDrop test', function () {
+describe('WriteMoveDrop test', function () {
   loadClientSide(['allex_directorylib']);
   it ('Create a directory database', function () {
     return setGlobal('DB', new allex_directorylib.DataBase('test.dir'));

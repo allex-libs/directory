@@ -496,6 +496,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       waiting: false,
       instance: null
     };
+    /*
     if (this.options && this.options.filecontents) {
       if (this.options.filecontents.parsermodulename) {
         if (this.options.filecontents.parsermodulename !== '*') {
@@ -506,6 +507,7 @@ function createReaders(execlib,FileOperation,util,Node) {
         }
       }
     }
+    */
   }
   lib.inherit(DirReader, FileReader);
   DirReader.prototype.destroy = function () {
@@ -516,6 +518,7 @@ function createReaders(execlib,FileOperation,util,Node) {
   };
   DirReader.prototype.go = function () {
     //console.log('going for', this.path, 'with current parserInfo', this.parserInfo, 'and options', this.options);
+    /*
     if(this.options.needparsing && this.options.filecontents && this.options.filecontents.parsermodulename !== '*') {
       if (!this.parserInfo.instance) {
         this.parserInfo.waiting = true;
@@ -524,6 +527,7 @@ function createReaders(execlib,FileOperation,util,Node) {
         this.parserInfo.waiting = false;
       }
     }
+    */
     this.type().then(
       this.onType.bind(this)
     );
@@ -608,8 +612,21 @@ function createReaders(execlib,FileOperation,util,Node) {
     if (this.options.files && this.options.files.indexOf(filename) < 0) {
       return q(false);
     }
-    //console.log(this.name, 'deciding wether to read .meta, this.parserInfo', this.parserInfo, 'this.options', this.options);
     d = q.defer();
+    if (this.options && this.options.filecontents) {
+      if (this.options.filecontents.parsermodulename) {
+        if (this.options.filecontents.parsermodulename !== '*') {
+          this.onMeta(d, filename, {
+            parserinfo: {
+              modulename: this.options.filecontents.parsermodulename,
+              propertyhash: this.options.filecontents.propertyhash
+            }
+          });
+          return d.promise;
+        }
+      }
+    }
+    //console.log(this.name, 'deciding wether to read .meta, this.parserInfo', this.parserInfo, 'this.options', this.options);
     if (this.needMeta()) {
       rd = q.defer();
       //console.log('metareader for', filename);
@@ -629,7 +646,7 @@ function createReaders(execlib,FileOperation,util,Node) {
       this.options.needparsing && 
       this.options.filecontents && 
       (
-        this.options.filecontents.parsermodulename === '*' ||
+        this.options.filecontents.parsermodulename ||
         this.options.filecontents.parsers
       );
   };
@@ -644,6 +661,7 @@ function createReaders(execlib,FileOperation,util,Node) {
     }
   }
   function fillMetaInfo(metainfo, metaresult, metaname){
+    console.log('fillMetaInfo', metainfo);
     if (lib.isString(metaname)) {
       metaresult[metaname] = metainfo[metaname];
     } else {
@@ -761,11 +779,22 @@ function createReaders(execlib,FileOperation,util,Node) {
     this.options.filestats.forEach(this.populateStats.bind(this,filename,fstats,stats));
     this.reportFile(filename,{defer: defer, data: stats});
   };
-  DirReader.prototype.populateStats = function (filename, fstats, stats, statskey) {
-    var mn = 'extract_'+statskey, 
-      m = this[mn];
+  DirReader.prototype.populateStats = function (filename, fstats, stats, statsinfo) {
+    var statskey, statsdest, mn, m;
+    if (lib.isString(statsinfo)) {
+      statskey = statsdest = statsinfo;
+    } else {
+      statskey = statsinfo.src;
+      statsdest = statsinfo.dest;
+    }
+    if (!statskey) {
+      console.error('statsinfo entry', statsinfo, 'resulted in no statskey');
+      return;
+    }
+    mn = 'extract_'+statskey;
+    m = this[mn];
     if ('function' === typeof m){
-      stats[statskey] = m.call(this, filename, fstats);
+      stats[statsdest] = m.call(this, filename, fstats);
     }/* else {
       console.log('Method',mn,'does not exist to populate',statskey,'of filestats');
     }*/
