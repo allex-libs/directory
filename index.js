@@ -1,9 +1,14 @@
-function createFileApi(execlib){
+function createLib (execlib) {
+  'use strict';
+  return execlib.loadDependencies('client', ['allex:parserregistry:lib'], createFileApi.bind(null, execlib));
+}
+
+function createFileApi(execlib, parserregistrylib_ignore){
   'use strict';
   try {
   var Node = require('allex_nodehelpersserverruntimelib')(execlib.lib),
     util = require('./util')(execlib);
-  require('./parserregistryintroducer')(execlib);
+  //require('./parserregistryintroducer')(execlib);
   require('./datageneratorregistryintroducer')(execlib);
 
   return {
@@ -16,4 +21,4 @@ function createFileApi(execlib){
   }
 }
 
-module.exports = createFileApi;
+module.exports = createLib;
