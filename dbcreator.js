@@ -355,8 +355,10 @@ function createHandler(execlib, util, Node) {
   lib.inherit(FileDataBaseTxn, FileDataBase);
   FileDataBaseTxn.prototype.commit = function (defer) {
     this.doCommit().then(
-      this.close.bind(this, defer)
-    )
+      this.close.bind(this, defer),
+      defer.reject.bind(defer)
+    );
+    defer = null;
   };
   FileDataBaseTxn.prototype.write = function (name, options, defer) {
     if (!lib.isArray(this.filesWritten)) {
@@ -390,10 +392,11 @@ function createHandler(execlib, util, Node) {
     return q(true);
   };
   FileDataBaseTxn.prototype.fileWrittenTriggerer = function (filename) {
-    if (!this.parentDB) {
+    var d;
+    if (!(this.parentDB && lib.isString(this.parentDB.rootpath))) {
       return q.reject(new lib.Error('ALREADY_DEAD', 'This instance of FileDataBaseTxn is already dead'));
     }
-    var d = q.defer();
+    d = q.defer();
     util.FStats(Path.join(this.parentDB.rootpath, filename), d);
     return d.promise.then(this.fireParentDataBaseChanged.bind(this, filename));
   };
